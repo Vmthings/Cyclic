@@ -1,0 +1,26 @@
+name = "cyclic-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cyclic"
+database_id = "PASTE_YOUR_D1_ID_HERE"
+
+# Runs every hour: refreshes device prices (for the subscription price) and,
+# at 03:00 UTC, pays volunteers whose earnings have cleared the hold period.
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+SITE_ORIGIN = "https://YOUR-NAME.github.io"        # origin only, no path
+SITE_URL = "https://YOUR-NAME.github.io/cyclic/"   # where the site lives
+CREDIT_CENTS = "10"          # 1 credit = 10 cents
+FEE_PERCENT = "0"            # Cyclic's cut of each session, 0-100
+HOLD_DAYS = "7"              # earnings are held this long before payout
+MIN_PAYOUT_CENTS = "500"     # smallest automatic payout
+PLAN_MIN_CENTS = "500"       # subscription never costs less than this
+STRIPE_PRODUCT_ID = "prod_XXXX"  # a Stripe product named "Cyclic subscription"
+
+# Secrets (set with `wrangler secret put NAME`):
+#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_SECRET
