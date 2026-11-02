@@ -1,0 +1,10 @@
+{
+  "cyclicSecret": "paste-the-secret-from-your-cyclic-dashboard",
+  "price": 0,
+  "currency": "USD",
+  "timeLimitMinutes": 30,
+  "name": "",
+  "allowedOrigin": "*",
+  "port": 8080,
+  "wsScrcpyPort": 8000
+}
