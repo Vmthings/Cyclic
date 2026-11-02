@@ -1,0 +1,710 @@
+<!--index.html-->
+<!--powered by cyclic-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyclic – borrow a real Android phone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f3f4f9; --card:#ffffff; --ink:#1d1b3a; --muted:#5d5b78; --line:#d9dbe8;
+  --accent:#00907a; --accent-ink:#ffffff; --price:#b4540a; --soft:#e3f5f1; --warn:#fff3df;
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#15142b; --card:#201f3d; --ink:#eeeefb; --muted:#a3a2c4; --line:#36345a;
+    --accent:#2fd1b3; --accent-ink:#0b1f1a; --price:#ffb066; --soft:#173a37; --warn:#3a2f1c;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15142b; --card:#201f3d; --ink:#eeeefb; --muted:#a3a2c4; --line:#36345a;
+  --accent:#2fd1b3; --accent-ink:#0b1f1a; --price:#ffb066; --soft:#173a37; --warn:#3a2f1c;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.1;margin:0}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header.nav{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.brand{font-family:"Bricolage Grotesque";font-weight:800;font-size:22px;text-decoration:none;color:var(--ink);margin-right:auto;display:flex;align-items:center;gap:8px}
+.brand svg{width:26px;height:26px}
+.nav a.l{color:var(--ink);text-decoration:none;font-weight:500}
+.nav a.l:hover{color:var(--accent)}
+.btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink);text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.sm{padding:6px 12px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.icon-btn{background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:16px}
+.pill{font:600 14px "IBM Plex Sans";background:var(--soft);color:var(--accent);border:0;border-radius:99px;padding:6px 14px;cursor:pointer}
+
+.hero{padding:56px 0 40px}
+.hero .wrap{display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:800;letter-spacing:-.02em}
+.hero p{font-size:19px;color:var(--muted);max-width:52ch;margin:18px 0 26px}
+.hero .row{display:flex;gap:12px;flex-wrap:wrap}
+.phone{width:230px;height:440px;margin:0 auto;border-radius:34px;border:8px solid var(--ink);background:#0e0d1f;position:relative;overflow:hidden;box-shadow:12px 12px 0 var(--accent)}
+.phone .notch{position:absolute;top:8px;left:50%;width:60px;height:8px;background:var(--ink);border-radius:8px;transform:translateX(-50%)}
+.phone .scr{position:absolute;inset:0;padding:40px 14px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-content:start}
+.phone .ic{aspect-ratio:1;border-radius:12px;opacity:.9}
+.phone .tap{position:absolute;width:44px;height:44px;border-radius:50%;border:3px solid #fff;left:30%;top:46%;animation:tap 4.5s ease-in-out infinite}
+@keyframes tap{0%,100%{transform:translate(0,0) scale(1);opacity:0}10%{opacity:1}45%{transform:translate(70px,60px) scale(1);opacity:1}55%{transform:translate(70px,60px) scale(.6);opacity:1}70%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.phone .tap{animation:none;opacity:.9}}
+
+section.block{padding:48px 0}
+section.block>.wrap>h2{font-size:clamp(28px,4vw,42px);margin-bottom:8px}
+.lede{color:var(--muted);max-width:62ch;margin:0 0 28px}
+
+.browse{display:grid;grid-template-columns:260px 1fr;gap:28px;align-items:start}
+.filters{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;position:sticky;top:76px}
+.filters h3{font-size:18px;margin-bottom:12px}
+.f{margin-bottom:16px}
+.f label{display:block;font-weight:600;font-size:14px;margin-bottom:5px}
+.f select,.f input[type=text],.f input[type=number],.f input[type=url],.f input[type=email],.f input[type=password]{width:100%;font:inherit;padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
+.f input[type=range]{width:100%;accent-color:var(--accent)}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:14px;padding:7px 0;background:transparent;color:var(--ink);border:0;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;color:var(--muted);flex-wrap:wrap;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.dev{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:10px}
+.dev .top{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.dev h3{font-size:20px}
+.tag{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--soft);color:var(--accent);white-space:nowrap}
+.tag.busy{background:var(--warn);color:var(--price)}
+.specs{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0;font-size:14px}
+.specs dt{color:var(--muted);font-size:12px}
+.specs dd{margin:0;font-weight:600}
+.dev .foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;border-top:1px dashed var(--line);gap:8px}
+.price{font-family:"Bricolage Grotesque";font-weight:800;font-size:22px;color:var(--price);line-height:1.1}
+.price.free{color:var(--accent)}
+.price small{display:block;font:500 12px "IBM Plex Sans";color:var(--muted)}
+.empty{padding:40px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--radius);color:var(--muted)}
+
+/* shop */
+.shop{display:grid;grid-template-columns:1fr 1.3fr;gap:20px;align-items:start}
+.plan{background:var(--ink);color:var(--paper);border-radius:var(--radius);padding:26px}
+.plan h3{font-size:26px;margin-bottom:6px}
+.plan .big{font-family:"Bricolage Grotesque";font-weight:800;font-size:44px;line-height:1;margin:14px 0 4px}
+.plan p{margin:6px 0;opacity:.85}
+.plan .btn{background:var(--accent);color:var(--accent-ink);margin-top:14px}
+.packs{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.pack{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:4px}
+.pack b{font-family:"Bricolage Grotesque";font-size:30px;line-height:1}
+.pack span{color:var(--muted);margin-bottom:10px}
+.how{margin-top:18px;color:var(--muted);font-size:15px;max-width:70ch}
+
+/* volunteer */
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:600;padding:9px 16px;border-radius:99px;border:1.5px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.panel[hidden]{display:none}
+ol.steps{margin:0;padding-left:0;list-style:none;counter-reset:s}
+ol.steps>li{counter-increment:s;position:relative;padding:0 0 22px 48px}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;display:grid;place-items:center}
+ol.steps h3{font-size:19px;margin-bottom:4px}
+ol.steps p{margin:0 0 8px;color:var(--muted)}
+pre{background:#0e0d1f;color:#e8e8ff;border-radius:10px;padding:14px 16px;overflow-x:auto;font:13.5px/1.55 ui-monospace,Menlo,Consolas,monospace;margin:8px 0}
+.note{background:var(--warn);border-radius:10px;padding:12px 14px;font-size:14.5px;margin:12px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.hint{font-size:12.5px;color:var(--muted);margin-top:3px}
+.mine{display:grid;gap:10px}
+.mine .row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 14px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 14px}
+.stats div{background:var(--paper);border-radius:10px;padding:10px 12px}
+.stats b{display:block;font-family:"Bricolage Grotesque";font-size:22px}
+.stats span{font-size:12.5px;color:var(--muted)}
+
+dialog{border:0;border-radius:var(--radius);padding:0;max-width:960px;width:calc(100% - 24px);background:var(--card);color:var(--ink)}
+dialog.narrow{max-width:420px}
+dialog::backdrop{background:rgba(10,8,30,.6)}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);gap:10px}
+.mbody{padding:18px}
+.timer{font-family:"Bricolage Grotesque";font-weight:800;font-size:22px;color:var(--accent)}
+.stage{height:min(70vh,640px);border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0e0d1f}
+.stage iframe{width:100%;height:100%;border:0}
+.err{color:var(--price);min-height:24px;margin:10px 0 0}
+footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:30px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;z-index:99;font-weight:500;max-width:90vw}
+
+@media(max-width:860px){
+  .hero .wrap,.browse,.two,.shop{grid-template-columns:1fr}
+  .filters{position:static}
+  .nav a.l{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Cyclic home">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M26 16a10 10 0 1 1-3-7.1"/><path d="M26 4v6h-6"/></svg>Cyclic
+    </a>
+    <a class="l" href="#browse">Phones</a>
+    <a class="l" href="#shop">Shop</a>
+    <a class="l" href="#volunteer">Volunteer</a>
+    <span id="acct"></span>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode">◐</button>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <h1>Use a real Android phone from anywhere.</h1>
+      <p>Volunteers host a spare phone or tablet on their own Raspberry Pi. Pay with credits, then tap and swipe the screen from your browser. Every credit you spend goes to the volunteer who hosted your session.</p>
+      <div class="row">
+        <a class="btn" href="#browse">Browse devices</a>
+        <a class="btn ghost" href="#shop">Get credits</a>
+        <a class="btn ghost" href="#volunteer">Lend a device</a>
+      </div>
+    </div>
+    <div class="phone" aria-hidden="true">
+      <div class="notch"></div>
+      <div class="scr" id="heroIcons"></div>
+      <div class="tap"></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="browse">
+  <div class="wrap">
+    <h2>Phones</h2>
+    <p class="lede">Filter by Android version, memory, session length, device type and price. Each volunteer sets their own time limit and price.</p>
+    <div class="browse">
+      <aside class="filters" aria-label="Filters">
+        <h3>Filters</h3>
+        <div class="f">
+          <label id="lblType">Device type</label>
+          <div class="seg" role="group" aria-labelledby="lblType" id="typeSeg">
+            <button data-v="all" aria-pressed="true">All</button>
+            <button data-v="phone" aria-pressed="false">Phone</button>
+            <button data-v="tablet" aria-pressed="false">Tablet</button>
+          </div>
+        </div>
+        <div class="f"><label for="fAndroid">Android version (at least)</label><select id="fAndroid"></select></div>
+        <div class="f">
+          <label for="fRam">RAM (at least)</label>
+          <select id="fRam">
+            <option value="0">Any</option><option value="2">2 GB</option><option value="3">3 GB</option><option value="4">4 GB</option>
+            <option value="6">6 GB</option><option value="8">8 GB</option><option value="12">12 GB</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="fTime">Session time limit (at least)</label>
+          <select id="fTime">
+            <option value="0">Any</option><option value="10">10 min</option><option value="15">15 min</option>
+            <option value="30">30 min</option><option value="60">60 min</option><option value="120">2 hours</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="fPrice">Max price: <output id="fPriceOut">any</output></label>
+          <input type="range" id="fPrice" min="0" max="200" step="5" value="200">
+          <div class="chk" style="margin-top:8px"><input type="checkbox" id="fFree"><label for="fFree" style="margin:0;font-weight:500">Free devices only</label></div>
+        </div>
+        <div class="f"><div class="chk"><input type="checkbox" id="fAvail"><label for="fAvail" style="margin:0;font-weight:500">Available now only</label></div></div>
+        <button class="btn ghost" id="reset" style="width:100%">Reset filters</button>
+      </aside>
+
+      <div>
+        <div class="bar">
+          <span><span id="count"></span> <button class="btn ghost sm" id="refreshBtn">Refresh</button></span>
+          <label>Sort by
+            <select id="sort" style="font:inherit;padding:6px 8px;border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)">
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="android-desc">Android: newest</option>
+              <option value="ram-desc">RAM: most</option>
+              <option value="time-desc">Time limit: longest</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="shop">
+  <div class="wrap">
+    <h2>Credits</h2>
+    <p class="lede">Credits pay for sessions. <span id="rate">1 credit = 10¢.</span> When you spend credits on a device, the money behind them goes to the volunteer hosting it.</p>
+    <div class="shop">
+      <div class="plan">
+        <h3>Cyclic Monthly</h3>
+        <p>Pay the price of the most expensive device on Cyclic each month. It turns into credits straight away.</p>
+        <div class="big" id="planPrice">…</div>
+        <p id="planCredits">per month</p>
+        <p style="font-size:14px">The price follows the highest device price, so it can change from one month to the next. Cancel anytime.</p>
+        <button class="btn" id="subBtn">Subscribe</button>
+      </div>
+      <div>
+        <div class="packs" id="packs"></div>
+        <p class="how">Buy credits once, with no subscription. Credits are added as soon as the payment goes through.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="volunteer">
+  <div class="wrap">
+    <h2>Volunteer a device</h2>
+    <p class="lede">You need a spare Android phone or tablet, a Raspberry Pi, a USB cable and a Wi‑Fi or Ethernet connection. Setup takes about 30 minutes. You host the session on your own Pi, and you earn money every time someone uses your device.</p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="t-phone">1. Set up the phone</button>
+      <button role="tab" aria-selected="false" data-tab="t-pi">2. Set up the Pi</button>
+      <button role="tab" aria-selected="false" data-tab="t-list">3. List it and get paid</button>
+      <button role="tab" aria-selected="false" data-tab="t-rules">Safety</button>
+    </div>
+
+    <div class="panel" id="t-phone">
+      <ol class="steps">
+        <li><h3>Use a spare device</h3><p>Pick a phone or tablet with nothing personal on it. Back it up, then do a factory reset so it has no accounts, photos or saved passwords.</p></li>
+        <li><h3>Turn on Developer options</h3><p>Open <b>Settings → About phone</b> and tap <b>Build number</b> seven times. You’ll see a message that you’re now a developer.</p></li>
+        <li><h3>Turn on USB debugging</h3><p>Open <b>Settings → System → Developer options</b> and switch on <b>USB debugging</b>. Some phones also have <b>Disable adb authorization timeout</b>; switch that on too, so the Pi stays trusted.</p></li>
+        <li><h3>Keep the screen awake</h3><p>In Developer options, switch on <b>Stay awake</b> (screen stays on while charging). Set the screen lock to <b>None</b> so users can reach the home screen.</p></li>
+        <li><h3>Plug the phone into the Pi</h3><p>Use a good data cable, not a charge-only one. When the phone asks <b>Allow USB debugging?</b>, tick <b>Always allow from this computer</b> and tap <b>Allow</b>.</p></li>
+        <li><h3>Install the apps you want to offer</h3><p>Install apps from a fresh Google account made only for this device, or sideload APKs. Don’t sign in to your own accounts.</p></li>
+      </ol>
+    </div>
+
+    <div class="panel" id="t-pi" hidden>
+      <p class="lede" style="margin-bottom:18px">Your Pi runs three things: <b>ws-scrcpy</b> (shows the screen), the <b>Cyclic agent</b> (hosts your API and the session, and enforces your time limit), and a <b>Cloudflare Tunnel</b> (gives it a public HTTPS link). Users connect to your Pi directly. A session only starts after Cyclic has taken the user’s credits.</p>
+      <ol class="steps">
+        <li><h3>Install Raspberry Pi OS</h3><p>Use Raspberry Pi Imager to write <b>Raspberry Pi OS Lite (64‑bit)</b> to a microSD card. In the settings menu, set a hostname, a strong password and your Wi‑Fi, and turn on SSH. A Pi 4 or newer with 2 GB RAM or more works well.</p></li>
+        <li><h3>Install the tools</h3><p>SSH into the Pi and run:</p>
+<pre>sudo apt update &amp;&amp; sudo apt full-upgrade -y
+sudo apt install -y android-tools-adb git build-essential python3 curl
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs</pre></li>
+        <li><h3>Check the phone is visible</h3><pre>adb devices</pre><p>You should see your phone with the status <code>device</code>. If it says <code>unauthorized</code>, unlock the phone and accept the prompt.</p></li>
+        <li><h3>Install ws-scrcpy (the screen viewer)</h3>
+<pre>git clone https://github.com/NetrisTV/ws-scrcpy.git
+cd ws-scrcpy
+npm install
+npm start</pre>
+          <p>It listens on port <b>8000</b>. Leave it running for now, then make it start on boot:</p>
+<pre>sudo tee /etc/systemd/system/wsscrcpy.service &gt; /dev/null &lt;&lt;'UNIT'
+[Unit]
+Description=ws-scrcpy
+After=network-online.target
+[Service]
+User=pi
+WorkingDirectory=/home/pi/ws-scrcpy
+ExecStart=/usr/bin/npm start
+Restart=always
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl enable --now wsscrcpy</pre>
+          <div class="note">ws-scrcpy hasn’t had frequent updates. If <code>npm install</code> fails, try Node 16 or check the project’s GitHub issues. Change <code>pi</code> to your Linux username if it’s different.</div></li>
+        <li><h3>Download the Cyclic agent</h3><p>The agent is one file with no extra packages to install.</p>
+<pre>mkdir -p ~/cyclic &amp;&amp; cd ~/cyclic
+curl -O <span class="site">https://YOUR-SITE</span>/pi-agent/server.js
+curl -o config.json <span class="site">https://YOUR-SITE</span>/pi-agent/config.example.json</pre></li>
+        <li><h3>Set your price and time limit</h3><p>Edit <code>config.json</code> with <code>nano config.json</code>:</p>
+<pre>{
+  "cyclicSecret": "paste-it-in-step-9",
+  "price": 2,
+  "currency": "USD",
+  "timeLimitMinutes": 30,
+  "allowedOrigin": "*"
+}</pre>
+          <p><b>price</b> is US dollars per session (0 is free). It’s charged in credits and rounds up to the next 10¢. <b>timeLimitMinutes</b> is how long each session lasts. Android version, RAM and phone/tablet type are read from the phone automatically. You’ll get <b>cyclicSecret</b> when you list the device in step 9, so leave it for now.</p></li>
+        <li><h3>Run the agent on boot</h3>
+<pre>sudo tee /etc/systemd/system/cyclic.service &gt; /dev/null &lt;&lt;'UNIT'
+[Unit]
+Description=Cyclic agent
+After=network-online.target
+[Service]
+User=pi
+WorkingDirectory=/home/pi/cyclic
+ExecStart=/usr/bin/node server.js
+Restart=always
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl enable --now cyclic
+curl http://127.0.0.1:8080/api/info</pre>
+          <p>The last command should print your phone’s details.</p></li>
+        <li><h3>Get a public HTTPS link</h3><p>Point Cloudflare Tunnel at the <b>agent (port 8080)</b>, not at ws-scrcpy. The agent only lets people through to ws-scrcpy during a paid session. For a quick test:</p>
+<pre>curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
+chmod +x cloudflared
+./cloudflared tunnel --url http://localhost:8080</pre>
+          <p>Copy the <code>https://….trycloudflare.com</code> link. It changes every run, so for a permanent address create a named tunnel in your Cloudflare dashboard.</p></li>
+        <li><h3>List your device and link the secret</h3><p>Open <b>3. List it and get paid</b>, sign in, and paste your tunnel link. Cyclic gives you a <code>cyclicSecret</code>. Paste it into <code>config.json</code>, then run <code>sudo systemctl restart cyclic</code>. Until you do, your device can’t start sessions.</p></li>
+      </ol>
+    </div>
+
+    <div class="panel" id="t-list" hidden>
+      <div id="dash"></div>
+    </div>
+
+    <div class="panel" id="t-rules" hidden>
+      <h3 style="margin-bottom:10px">Keep it safe</h3>
+      <ul style="margin:0;padding-left:20px;color:var(--muted)">
+        <li>Use a dedicated device with a factory reset. Never sign in to your own Google, banking or social accounts on it.</li>
+        <li>Factory reset the device between users if you can, or at least clear apps and data after each session.</li>
+        <li>The agent only lets people reach the screen during a session, and ends it when the time limit is up. Keep ws-scrcpy (port 8000) off the internet and expose only the agent through your tunnel.</li>
+        <li>Keep your <code>cyclicSecret</code> private. If it leaks, rotate it in your dashboard.</li>
+        <li>Check your local laws and your internet provider’s terms before sharing a connection.</li>
+        <li>Watch the first few sessions, and unplug the Pi if anyone misuses the device.</li>
+      </ul>
+      <h3 style="margin:18px 0 10px">Users: what not to do</h3>
+      <ul style="margin:0;padding-left:20px;color:var(--muted)">
+        <li>Don’t sign in to your own accounts or enter personal details or payment cards on a borrowed device.</li>
+        <li>Don’t use a device for anything illegal, abusive or that harms the volunteer.</li>
+        <li>Remember the volunteer can see what happens on their device.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap">Cyclic is a community project. Volunteers lend devices at their own risk, and you use them at yours.</div></footer>
+
+<dialog id="dlg" aria-labelledby="dTitle">
+  <div class="mhead">
+    <h3 id="dTitle">Device</h3>
+    <span class="timer" id="timer" hidden></span>
+    <button class="btn ghost" id="dClose">Close</button>
+  </div>
+  <div class="mbody" id="dBody"></div>
+</dialog>
+
+<dialog id="authDlg" class="narrow" aria-labelledby="aTitle">
+  <div class="mhead"><h3 id="aTitle">Sign in</h3><button class="btn ghost sm" id="aClose">Close</button></div>
+  <div class="mbody">
+    <div class="seg" id="aSeg" style="margin-bottom:14px">
+      <button data-m="login" aria-pressed="true">Sign in</button>
+      <button data-m="signup" aria-pressed="false">Create account</button>
+    </div>
+    <form id="authForm">
+      <div class="f" id="nameRow" hidden><label for="aName">Display name</label><input type="text" id="aName" maxlength="30" autocomplete="nickname"></div>
+      <div class="f"><label for="aEmail">Email</label><input type="email" id="aEmail" required autocomplete="email"></div>
+      <div class="f"><label for="aPw">Password</label><input type="password" id="aPw" required minlength="8" autocomplete="current-password"><div class="hint">At least 8 characters.</div></div>
+      <button class="btn" id="aGo" style="width:100%">Sign in</button>
+      <p class="err" id="aErr" role="alert"></p>
+    </form>
+  </div>
+</dialog>
+
+<script>
+/* The Cyclic server (the Cloudflare Worker in /worker) holds accounts, credits,
+   payments and volunteer payouts. Paste its address here, for example
+   "https://cyclic-api.yourname.workers.dev". Leave out the trailing slash. */
+const API_URL = "";
+
+const VERSIONS=[15,14,13,12,11,10,9,8];
+const TOKEN_KEY="cyclic-token";
+let cfg={creditCents:10,packs:[],plan:null,holdDays:7,minPayoutCents:500};
+let me=null, token=null, live=[], results=new Map(), loading=true, active=null, tick=null, lastSecret=null;
+try{token=localStorage.getItem(TOKEN_KEY)}catch(e){}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const usd=c=>"$"+(c/100).toFixed(2);
+function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)}
+const creditsFor=d=>Math.ceil(Math.round((+d.price||0)*100)/cfg.creditCents);
+
+/* ---------- Server calls ---------- */
+async function api(path,{method="GET",body}={}){
+  if(!API_URL)throw new Error("This site isn’t connected to its Cyclic server yet. The site owner needs to set API_URL.");
+  const h={};if(body)h["Content-Type"]="application/json";if(token)h.Authorization="Bearer "+token;
+  let r;try{r=await fetch(API_URL+path,{method,headers:h,body:body?JSON.stringify(body):undefined})}
+  catch(e){throw new Error("Couldn’t reach the Cyclic server. Check your connection and try again.")}
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401&&token&&path!=="/auth/login"){setToken(null)}
+  if(!r.ok)throw new Error(j.error||("Request failed ("+r.status+")"));
+  return j;
+}
+function setToken(t){token=t;me=null;if(!t)lastSecret=null;try{t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY)}catch(e){}renderAcct();renderShop();renderDash()}
+async function loadMe(){
+  if(!token||!API_URL){me=null;renderAcct();renderShop();renderDash();return}
+  try{me=await api("/me")}catch(e){me=null}
+  renderAcct();renderShop();renderDash();
+}
+async function loadConfig(){
+  if(!API_URL){renderShop();return}
+  try{cfg={...cfg,...await api("/config")}}catch(e){}
+  renderShop();
+}
+
+/* ---------- Header + auth ---------- */
+function renderAcct(){
+  $("#acct").innerHTML=me
+    ?`<button class="pill" id="credPill" title="Buy credits">${me.credits} credits</button> <button class="btn ghost sm" id="outBtn">Sign out</button>`
+    :`<button class="btn sm" id="inBtn">Sign in</button>`;
+  if(me){$("#credPill").onclick=()=>{location.hash="#shop"};$("#outBtn").onclick=()=>setToken(null)}
+  else $("#inBtn").onclick=()=>openAuth();
+}
+let authMode="login";
+function openAuth(mode){
+  setAuthMode(mode||"login");$("#aErr").textContent="";$("#authDlg").showModal();$("#aEmail").focus();
+}
+function setAuthMode(m){
+  authMode=m;
+  document.querySelectorAll("#aSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));
+  $("#nameRow").hidden=m!=="signup";$("#aTitle").textContent=m==="signup"?"Create account":"Sign in";
+  $("#aGo").textContent=m==="signup"?"Create account":"Sign in";
+  $("#aPw").autocomplete=m==="signup"?"new-password":"current-password";
+}
+document.querySelectorAll("#aSeg button").forEach(b=>b.onclick=()=>setAuthMode(b.dataset.m));
+$("#aClose").onclick=()=>$("#authDlg").close();
+$("#authForm").addEventListener("submit",async e=>{
+  e.preventDefault();$("#aErr").textContent="";$("#aGo").disabled=true;
+  try{
+    const body={email:$("#aEmail").value,password:$("#aPw").value};
+    if(authMode==="signup")body.name=$("#aName").value;
+    const r=await api(authMode==="signup"?"/auth/signup":"/auth/login",{method:"POST",body});
+    token=r.token;try{localStorage.setItem(TOKEN_KEY,token)}catch(_){}
+    $("#authDlg").close();e.target.reset();await loadMe();toast("Signed in");
+  }catch(err){$("#aErr").textContent=err.message}
+  $("#aGo").disabled=false;
+});
+const needSignIn=()=>{openAuth("login")};
+
+/* ---------- Devices (live from each volunteer's Pi) ---------- */
+async function probe(entry){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),6000);
+  try{
+    const r=await fetch(entry.apiUrl+"/api/info",{signal:c.signal,cache:"no-store"});
+    if(!r.ok)throw new Error("bad status");
+    const j=await r.json();
+    if(!j.online||!j.android)return{...entry,online:false};
+    return{...j,apiUrl:entry.apiUrl,id:entry.id,volunteer:entry.volunteer};
+  }catch(e){return{...entry,online:false}}
+  finally{clearTimeout(t)}
+}
+async function refresh(){
+  $("#count").textContent="Checking devices…";
+  let list=[];
+  if(API_URL){try{list=(await api("/devices")).devices||[]}catch(e){}}
+  const res=await Promise.all(list.map(probe));
+  results=new Map(res.map(d=>[d.id,d]));
+  live=res.filter(d=>d.online);
+  loading=false;render();
+}
+const st={type:"all"};
+function fillVersions(){
+  $("#fAndroid").innerHTML='<option value="0">Any</option>'+VERSIONS.map(v=>`<option value="${v}">Android ${v}</option>`).join("");
+}
+function render(){
+  const a=+$("#fAndroid").value,r=+$("#fRam").value,t=+$("#fTime").value,
+        p=+$("#fPrice").value,free=$("#fFree").checked,avail=$("#fAvail").checked,s=$("#sort").value;
+  $("#fPriceOut").textContent=p>=200?"any":p+" credits";
+  let l=live.filter(d=>
+    (st.type==="all"||d.type===st.type)&&d.android>=a&&d.ram>=r&&d.timeLimit>=t&&
+    (!avail||d.status==="available")&&(free?creditsFor(d)===0:(p>=200||creditsFor(d)<=p)));
+  const [k,dir]=s.split("-");
+  const key={price:"price",android:"android",ram:"ram",time:"timeLimit"}[k];
+  l.sort((x,y)=>dir==="asc"?x[key]-y[key]:y[key]-x[key]);
+  const off=[...results.values()].filter(d=>!d.online).length;
+  $("#count").textContent=loading?"Checking devices…":(l.length+(l.length===1?" device":" devices")+(off?`, ${off} offline`:""));
+  if(loading){$("#grid").innerHTML="";return}
+  if(l.length){$("#grid").innerHTML=l.map(card).join("");return}
+  $("#grid").innerHTML=live.length
+    ?'<div class="empty" style="grid-column:1/-1">No devices match these filters. Try a lower Android version or a higher price limit.</div>'
+    :'<div class="empty" style="grid-column:1/-1"><b>No live devices right now.</b><br>Volunteers’ phones show up here once their Raspberry Pi is online. <a href="#volunteer">Lend yours</a> to be the first.</div>';
+}
+function card(d){
+  const cr=creditsFor(d);
+  const priceHtml=cr>0?`<span class="price">${cr} credits<small>≈ ${usd(cr*cfg.creditCents)} per session</small></span>`:`<span class="price free">Free</span>`;
+  const busy=d.status==="busy",mins=Math.ceil((d.secondsLeft||0)/60);
+  return `<article class="dev">
+    <div class="top"><h3>${esc(d.name)}</h3>${busy?'<span class="tag busy">In use</span>':'<span class="tag">Available</span>'}</div>
+    <dl class="specs">
+      <div><dt>Type</dt><dd>${d.type==="tablet"?"Tablet":"Phone"}</dd></div>
+      <div><dt>Android</dt><dd>${+d.android}</dd></div>
+      <div><dt>RAM</dt><dd>${+d.ram} GB</dd></div>
+      <div><dt>Time limit</dt><dd>${+d.timeLimit} min</dd></div>
+    </dl>
+    <div style="font-size:13px;color:var(--muted)">Hosted by ${esc(d.volunteer||"a volunteer")}</div>
+    <div class="foot">${priceHtml}<button class="btn" data-open="${esc(d.id)}" ${busy?"disabled":""}>${busy?`Free in ~${mins} min`:"Open"}</button></div>
+  </article>`;
+}
+document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>{
+  st.type=b.dataset.v;
+  document.querySelectorAll("#typeSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();
+});
+["fAndroid","fRam","fTime","fPrice","fFree","fAvail","sort"].forEach(i=>$("#"+i).addEventListener("input",render));
+$("#reset").onclick=()=>{
+  st.type="all";
+  document.querySelectorAll("#typeSeg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v==="all"));
+  $("#fAndroid").value=0;$("#fRam").value=0;$("#fTime").value=0;$("#fPrice").value=200;$("#fFree").checked=false;$("#fAvail").checked=false;$("#sort").value="price-asc";
+  render();
+};
+$("#refreshBtn").onclick=refresh;
+
+/* ---------- Session ---------- */
+const dlg=$("#dlg");
+$("#grid").addEventListener("click",e=>{const b=e.target.closest("[data-open]");if(b)openDevice(b.dataset.open)});
+async function openDevice(id){
+  let d=results.get(id);if(!d)return;
+  $("#dTitle").textContent=d.name;$("#timer").hidden=true;
+  $("#dBody").innerHTML="<p>Checking the device…</p>";dlg.showModal();
+  const fresh=await probe(d);
+  if(!fresh.online){$("#dBody").innerHTML="<p><b>This device is offline.</b> The volunteer’s Pi or phone isn’t responding. Close this and try another device.</p>";return}
+  if(fresh.status==="busy"){$("#dBody").innerHTML=`<p><b>This device is in use.</b> It should be free in about ${Math.ceil(fresh.secondsLeft/60)} minutes.</p>`;return}
+  d=fresh;results.set(id,d);
+  const cr=creditsFor(d),short=me&&me.credits<cr;
+  $("#dBody").innerHTML=`
+    <p>${cr>0?`This session costs <b>${cr} credits</b> (≈ ${usd(cr*cfg.creditCents)}) and lasts up to <b>${+d.timeLimit} minutes</b>.`:`Free device. Your session lasts up to <b>${+d.timeLimit} minutes</b>.`}
+    The credits go to ${esc(d.volunteer||"the volunteer")}, who hosts it on their own Raspberry Pi. Don’t sign in to personal accounts.</p>
+    ${me?`<p class="hint" style="font-size:14px">Your balance: <b>${me.credits} credits</b></p>`:""}
+    <button class="btn" id="startBtn">${!me?"Sign in to start":short?"Get credits to start":`Start ${+d.timeLimit}-minute session`}</button>
+    <p class="err" id="dErr" role="alert"></p>`;
+  $("#startBtn").onclick=async()=>{
+    if(!me){dlg.close();needSignIn();return}
+    if(short){dlg.close();location.hash="#shop";return}
+    $("#startBtn").disabled=true;$("#dErr").textContent="";
+    try{
+      const s=await api("/sessions/start",{method:"POST",body:{deviceId:d.id}});
+      if(me)me.credits=s.credits;renderAcct();beginView(d,s);
+    }catch(e){$("#dErr").textContent=e.message;$("#startBtn").disabled=false}
+  };
+}
+function beginView(d,s){
+  active={d,token:s.token};
+  const viewUrl=`${d.apiUrl}/start?t=${encodeURIComponent(s.token)}`;
+  $("#dBody").innerHTML=`<div class="stage"><iframe src="${esc(viewUrl)}" title="${esc(d.name)} screen" allow="clipboard-read; clipboard-write"></iframe></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button class="btn ghost" id="endBtn">End session</button>
+      <a href="${esc(viewUrl)}" target="_blank" rel="noopener noreferrer">Screen blank? Open in a new tab</a>
+    </div>
+    <p class="hint">Choose the phone in the list, then pick a stream option to see and control the screen. Ending early doesn’t refund credits.</p>`;
+  $("#endBtn").onclick=()=>dlg.close();
+  let left=s.secondsLeft;const t=$("#timer");t.hidden=false;
+  const draw=()=>{t.textContent=String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")};
+  draw();clearInterval(tick);
+  tick=setInterval(()=>{left--;draw();if(left<=0){clearInterval(tick);tick=null;active=null;t.hidden=true;$("#dBody").innerHTML="<p><b>Time’s up. The session has ended.</b></p>"}},1000);
+}
+dlg.addEventListener("close",()=>{
+  clearInterval(tick);tick=null;
+  if(active){
+    try{fetch(active.d.apiUrl+"/api/session/stop",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({token:active.token})})}catch(e){}
+    active=null;
+  }
+  $("#dBody").innerHTML="";refresh();
+});
+$("#dClose").onclick=()=>dlg.close();
+
+/* ---------- Shop ---------- */
+function renderShop(){
+  $("#rate").textContent=`1 credit = ${cfg.creditCents}¢.`;
+  const plan=cfg.plan;
+  $("#planPrice").textContent=plan?usd(plan.cents):"…";
+  $("#planCredits").textContent=plan?`per month, turned into ${plan.credits} credits`:"per month";
+  const sub=me&&me.sub&&["active","trialing","past_due"].includes(me.sub.status);
+  $("#subBtn").textContent=sub?"Manage subscription":"Subscribe";
+  $("#packs").innerHTML=(cfg.packs.length?cfg.packs:[]).map(p=>`<div class="pack"><b>${p.credits} credits</b><span>${usd(p.cents)}</span><button class="btn" data-pack="${p.cents}">Buy</button></div>`).join("")
+    ||'<div class="empty" style="grid-column:1/-1">Credit packs appear once the site is connected to its Cyclic server.</div>';
+}
+async function go(path,body){
+  try{const r=await api(path,{method:"POST",body:body||{}});location.href=r.url}catch(e){toast(e.message)}
+}
+$("#packs").addEventListener("click",e=>{
+  const b=e.target.closest("[data-pack]");if(!b)return;
+  if(!me)return needSignIn();go("/shop/checkout",{cents:+b.dataset.pack});
+});
+$("#subBtn").onclick=()=>{
+  if(!me)return needSignIn();
+  const sub=me.sub&&["active","trialing","past_due"].includes(me.sub.status);
+  go(sub?"/billing/portal":"/shop/subscribe");
+};
+
+/* ---------- Volunteer dashboard ---------- */
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  ["t-phone","t-pi","t-list","t-rules"].forEach(id=>$("#"+id).hidden=id!==b.dataset.tab);
+});
+function renderDash(){
+  const el=$("#dash");
+  if(!API_URL){el.innerHTML='<div class="empty">This site isn’t connected to its Cyclic server yet, so devices can’t be listed. The site owner needs to set <code>API_URL</code>.</div>';return}
+  if(!me){el.innerHTML='<div class="empty"><b>Sign in to list a device and get paid.</b><br><br><button class="btn" id="dashIn">Sign in or create an account</button></div>';$("#dashIn").onclick=()=>openAuth("signup");return}
+  const e=me.earnings,c=me.connect;
+  el.innerHTML=`<div class="two">
+    <div>
+      <h3 style="margin-bottom:8px">Earnings</h3>
+      <div class="stats">
+        <div><b>${usd(e.pendingCents)}</b><span>Held for ${cfg.holdDays} days</span></div>
+        <div><b>${usd(e.availableCents)}</b><span>Ready to pay out</span></div>
+        <div><b>${usd(e.paidCents)}</b><span>Paid out</span></div>
+      </div>
+      <p class="hint" style="font-size:14px;margin:0 0 10px">When someone spends credits on your device, you earn the money those credits cost. Earnings are held for ${cfg.holdDays} days, then paid to your bank through Stripe. Payouts run daily once you have at least ${usd(cfg.minPayoutCents)}.</p>
+      ${c.ready?`<button class="btn" id="cashBtn" ${e.availableCents<=0?"disabled":""}>Pay out now</button>`
+        :`<button class="btn" id="connBtn">${c.hasAccount?"Finish payout setup":"Set up payouts"}</button><p class="hint">You can list devices now. Earnings wait for you until payouts are set up.</p>`}
+      <p class="err" id="dashErr" role="alert"></p>
+      <h3 style="margin:18px 0 8px">Add a device</h3>
+      <form id="addForm" autocomplete="off">
+        <div class="f"><label for="vUrl">Your tunnel link</label><input type="url" id="vUrl" required placeholder="https://your-tunnel.trycloudflare.com"><div class="hint">The link to your Pi’s agent (port 8080). It must start with https://.</div></div>
+        <button class="btn" type="submit">Check and list</button>
+      </form>
+      <div id="secretBox"></div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">Your devices</h3>
+      <div class="mine" id="mine">${me.devices.length?me.devices.map(d=>`<div class="row"><span style="min-width:0;overflow-wrap:anywhere"><b>${esc(d.apiUrl.replace(/^https?:\/\//,""))}</b><br><small style="color:var(--muted)">${d.online?"Online":"Offline"} · ${d.priceCents?usd(d.priceCents):"Free"} per session</small></span><span><button class="btn ghost sm" data-rot="${esc(d.id)}">New secret</button> <button class="btn ghost sm" data-del="${esc(d.id)}">Remove</button></span></div>`).join(""):'<div class="empty" style="padding:18px">You haven’t listed a device yet.</div>'}</div>
+    </div>
+  </div>`;
+  if($("#cashBtn"))$("#cashBtn").onclick=async()=>{try{const r=await api("/volunteer/payout",{method:"POST"});toast(`Paid out ${usd(r.paid)}`);loadMe()}catch(err){$("#dashErr").textContent=err.message}};
+  if($("#connBtn"))$("#connBtn").onclick=()=>go("/volunteer/connect");
+  $("#addForm").addEventListener("submit",async ev=>{
+    ev.preventDefault();$("#secretBox").innerHTML='<p>Checking your Pi…</p>';
+    try{const r=await api("/devices",{method:"POST",body:{apiUrl:$("#vUrl").value}});showSecret(r.secret,"Device listed.");await loadMe();refresh()}
+    catch(err){$("#secretBox").innerHTML=`<p class="err">${esc(err.message)}</p>`}
+  });
+  $("#mine").addEventListener("click",async ev=>{
+    const del=ev.target.closest("[data-del]"),rot=ev.target.closest("[data-rot]");
+    try{
+      if(del){await api("/devices/"+del.dataset.del,{method:"DELETE"});await loadMe();refresh()}
+      if(rot){const r=await api("/devices/"+rot.dataset.rot+"/rotate",{method:"POST"});showSecret(r.secret,"New secret created. The old one no longer works.")}
+    }catch(err){toast(err.message)}
+  });
+  if(lastSecret)$("#secretBox").innerHTML=secretHtml(lastSecret.secret,lastSecret.msg);
+}
+function secretHtml(secret,msg){
+  return `<div class="note"><b>${esc(msg)}</b> Put this secret in your Pi’s <code>config.json</code>, then restart the agent. It’s shown only now.</div>
+<pre>"cyclicSecret": "${esc(secret)}"</pre><pre>sudo systemctl restart cyclic</pre>`;
+}
+function showSecret(secret,msg){lastSecret={secret,msg};$("#secretBox").innerHTML=secretHtml(secret,msg)}
+
+/* ---------- Theme, hero, site address ---------- */
+$("#themeBtn").onclick=()=>{
+  const r=document.documentElement,dark=getComputedStyle(r).getPropertyValue("--paper").trim()==="#15142b";
+  r.setAttribute("data-theme",dark?"light":"dark");
+};
+const cols=["#2fd1b3","#ffb066","#8f8cff","#ff7a90","#5cc8ff","#ffd84d","#a0e86a","#e08bff"];
+$("#heroIcons").innerHTML=Array.from({length:20},(_,i)=>`<div class="ic" style="background:${cols[(i*3)%cols.length]}"></div>`).join("");
+if(location.protocol.startsWith("http")){
+  const base=new URL(".",location.href).href.replace(/\/$/,"");
+  document.querySelectorAll(".site").forEach(s=>s.textContent=base);
+}
+
+/* ---------- Init ---------- */
+fillVersions();renderAcct();renderShop();renderDash();
+(async()=>{
+  await loadConfig();await Promise.all([loadMe(),refresh()]);
+  const q=new URLSearchParams(location.search);
+  if(q.get("checkout")==="success"){
+    toast("Payment received. Your credits will appear in a few seconds.");
+    for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,2500));await loadMe()}
+  }
+  if(q.get("connect")==="done")loadMe();
+})();
+setInterval(()=>{if(!dlg.open)refresh()},30000);
+</script>
+</body>
+</html>
