@@ -7,10 +7,12 @@ import { HOST_PUBLIC_KEY, PEER_OPTIONS } from './config.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const store = H.idbStorage();
+const store = globalThis.__cyclicTestStore || H.idbStorage();
+const SESSION_KEY = 'cyclic-host-session';     // sessionStorage: this tab only, gone when the tab closes, never sent over the network
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 let running = null, sqlPromise = null;
 
-const loadSql = () => sqlPromise ||= new Promise((res, rej) => {
+const loadSql = () => globalThis.__cyclicTestSQL ? Promise.resolve(globalThis.__cyclicTestSQL) : sqlPromise ||= new Promise((res, rej) => {
   const s = document.createElement('script'); s.src = 'host/vendor/sql-wasm.js';
   s.onload = () => initSqlJs({ locateFile: f => 'host/vendor/' + f }).then(res, rej);
   s.onerror = () => rej(new Error('Couldn’t load the database engine.'));
@@ -23,22 +25,37 @@ function download(name, data, type) {
 const readFile = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsArrayBuffer(f); });
 const keyLine = pub => `export const HOST_PUBLIC_KEY = ${JSON.stringify(H.publicOf(pub))};`;
 
-async function begin(password, stripeInput) {
-  const rec = await store.get('hostkey');
-  const privateJwk = await H.unlock(rec.blob, password);                 // throws "Wrong password."
-  if (HOST_PUBLIC_KEY && !H.sameKey(rec.publicJwk, HOST_PUBLIC_KEY)) throw new Error('This device’s key doesn’t match the host key published on the site.');
-  let stripeKey = '';
-  if (stripeInput) { await store.set('stripe', await H.lock({ key: stripeInput }, password)); stripeKey = stripeInput; }
-  else { const sb = await store.get('stripe'); if (sb) stripeKey = (await H.unlock(sb, password)).key; }
+// Starts hosting from an already-unlocked key. After a page refresh the broker may still hold the old
+// connection ID for a few seconds, so a resume retries instead of failing.
+async function startWith({ privateJwk, publicJwk, stripeKey }, { retry = 0 } = {}) {
+  if (HOST_PUBLIC_KEY && !H.sameKey(publicJwk, HOST_PUBLIC_KEY)) throw new Error('This device’s key doesn’t match the host key published on the site.');
   const SQL = await loadSql();
-  running = await H.startHost({
-    SQL, storage: store, Peer: window.Peer, privateJwk, publicJwk: rec.publicJwk, stripeKey,
-    siteUrl: new URL('.', location.href).href, peerOptions: PEER_OPTIONS, onStatus: paint
-  });
+  for (let attempt = 0; ; attempt++) {
+    running = await H.startHost({
+      SQL, storage: store, Peer: window.Peer, privateJwk, publicJwk, stripeKey,
+      siteUrl: new URL('.', location.href).href, peerOptions: PEER_OPTIONS, onStatus: paint
+    });
+    if (retry) for (let i = 0; i < 40 && running.status.state === 'starting'; i++) await sleep(100);
+    if (retry && attempt < retry && running.status.state === 'error' && /already hosting/.test(running.status.lastError || '')) {
+      running.stop(); running = null; await sleep(3000); continue;
+    }
+    break;
+  }
   window.CyclicHostLocal = (m, p, b, t) => running.call(m, p, b, t);
   window.dispatchEvent(new Event('cyclic-host-local'));
 }
+async function begin(password, stripeInput) {
+  const rec = await store.get('hostkey');
+  const privateJwk = await H.unlock(rec.blob, password);                 // throws "Wrong password."
+  let stripeKey = '';
+  if (stripeInput) { await store.set('stripe', await H.lock({ key: stripeInput }, password)); stripeKey = stripeInput; }
+  else { const sb = await store.get('stripe'); if (sb) stripeKey = (await H.unlock(sb, password)).key; }
+  const data = { privateJwk, publicJwk: rec.publicJwk, stripeKey };
+  await startWith(data);
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* private mode: you'll just retype the password after a refresh */ }
+}
 function stop() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* nothing saved */ }
   if (running) running.stop();
   running = null; window.CyclicHostLocal = null; window.dispatchEvent(new Event('cyclic-host-local'));
 }
@@ -129,6 +146,13 @@ async function render() {
   };
 }
 function toast(t) { const e = document.createElement('div'); e.className = 'toast'; e.textContent = t; document.body.appendChild(e); setTimeout(() => e.remove(), 3000); }
+
+(async () => {                                   // refresh: pick hosting back up without the password
+  let raw = null; try { raw = sessionStorage.getItem(SESSION_KEY); } catch { /* unavailable */ }
+  if (!raw) return;
+  try { await startWith(JSON.parse(raw), { retry: 10 }); toast('Hosting resumed'); }
+  catch (err) { console.error(err); try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ } }
+})();
 
 window.addEventListener('beforeunload', e => { if (running) { running.flush(); e.preventDefault(); e.returnValue = ''; } });
 window.CyclicHostUI = { open() { $('#hostDlg').showModal(); render(); } };
