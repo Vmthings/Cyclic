@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<script>document.documentElement.classList.add("js")</script>
+<title>Welcome to Cyclic!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f3f4f9; --card:#ffffff; --ink:#1d1b3a; --muted:#5d5b78; --line:#d9dbe8;
+  --accent:#00907a; --accent-ink:#ffffff; --soft:#e3f5f1;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#15142b; --card:#201f3d; --ink:#eeeefb; --muted:#a3a2c4; --line:#36345a;
+    --accent:#2fd1b3; --accent-ink:#0b1f1a; --soft:#173a37;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;margin:0;line-height:1.1}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+header{padding:14px 20px 8px}
+.logo{display:block;width:26px;height:26px;color:var(--accent);margin-bottom:18px}
+header h1{font-size:clamp(34px,10vw,52px);font-weight:800;letter-spacing:-.02em}
+header p{color:var(--muted);margin:10px 0 0;max-width:36ch}
+
+main{padding:10px 20px 28px;max-width:560px;margin:0 auto}
+h2.sec{font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px;font-family:"IBM Plex Sans",system-ui,sans-serif}
+.task{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.task .head{display:flex;gap:12px;align-items:center}
+.num{flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 15px "Bricolage Grotesque",sans-serif}
+.task h3{font-size:20px}
+.task p{margin:8px 0 12px;color:var(--muted);font-size:15px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:600 16px "IBM Plex Sans",sans-serif;text-decoration:none;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.row{display:flex;gap:8px}
+input[type=text]{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font:16px "IBM Plex Sans",sans-serif}
+dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:12px 0 0;font-size:15px}
+dt{color:var(--muted)} dd{margin:0;font-weight:600;text-align:right;overflow-wrap:anywhere}
+#pad{display:none;position:relative;height:200px;margin-top:12px;border-radius:12px;background:var(--paper);border:1.5px dashed var(--line);overflow:hidden;touch-action:none;user-select:none}
+#pad.on{display:block}
+#padMsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:12px;color:var(--muted);pointer-events:none;font-weight:500}
+.dot{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:var(--accent);opacity:.55;pointer-events:none;animation:dotFade .7s forwards}
+@keyframes dotFade{to{opacity:0;transform:scale(1.6)}}
+.foot{margin-top:20px;padding:14px 16px;border-radius:14px;background:var(--soft);color:var(--ink);font-size:14.5px}
+
+/* ---------- Animation ---------- */
+.bg{position:fixed;inset:0;overflow:hidden;z-index:-1;pointer-events:none}
+.blob{position:absolute;width:70vmax;height:70vmax;border-radius:50%;opacity:.55;will-change:transform}
+.blob.a{left:-30vmax;top:-34vmax;background:radial-gradient(closest-side,var(--accent),transparent 70%);animation:driftA 14s ease-in-out infinite alternate}
+.blob.b{right:-34vmax;top:22vh;background:radial-gradient(closest-side,#8f8cff,transparent 70%);opacity:.35;animation:driftB 18s ease-in-out infinite alternate}
+@keyframes driftA{from{transform:translate(0,0) scale(1)}to{transform:translate(18vmax,12vmax) scale(1.2)}}
+@keyframes driftB{from{transform:translate(0,0) scale(1.1)}to{transform:translate(-16vmax,-14vmax) scale(.9)}}
+
+/* logo: draws itself, then keeps turning */
+.logo{animation:spin 9s linear 1.6s infinite}
+.logo path{stroke-dasharray:60;stroke-dashoffset:60;animation:draw 1.1s cubic-bezier(.6,0,.2,1) .15s forwards}
+.logo path+path{animation-delay:.9s;stroke-dasharray:20;stroke-dashoffset:20}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* heading: words rise in one by one, "Cyclic!" shimmers */
+.w{display:inline-block;animation:rise .8s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(.45s + var(--i) * .18s)}
+@keyframes rise{from{opacity:0;transform:translateY(.6em) scale(.96);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+.shimmer{color:var(--accent)}
+@supports (-webkit-background-clip:text) or (background-clip:text){
+  .shimmer{background:linear-gradient(90deg,var(--accent) 0%,#8f8cff 35%,var(--accent) 70%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+    animation:rise .8s cubic-bezier(.2,.9,.25,1.15) both,shine 3.6s linear 1.4s infinite;animation-delay:calc(.45s + var(--i) * .18s),1.4s}
+}
+@keyframes shine{to{background-position:-220% 0}}
+header p{animation:fade .8s ease 1.1s both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes slide{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+
+/* task cards: slide up in turn, number badges pop */
+.js .reveal{opacity:0}
+.js .reveal.in{opacity:1;animation:cardIn .8s cubic-bezier(.2,.9,.25,1) backwards;animation-delay:var(--d,0s)}
+@keyframes cardIn{from{opacity:0;transform:translate(var(--x,0px),42px) scale(.95)}to{opacity:1;transform:none}}
+.js .num{transform:scale(0)}
+.js .task.in .num{transform:none;animation:pop .6s cubic-bezier(.3,1.6,.5,1) backwards;animation-delay:calc(var(--d,0s) + .3s)}
+@keyframes pop{from{transform:scale(0) rotate(-120deg)}to{transform:none}}
+.task:first-of-type .num{position:relative}
+.task.in:first-of-type .num::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);animation:ping 2.2s ease-out 1.6s infinite}
+@keyframes ping{from{transform:scale(1);opacity:.8}to{transform:scale(2.2);opacity:0}}
+
+/* press feedback + tap ripples */
+.btn{transition:transform .12s ease,filter .12s ease}
+.btn:active{transform:scale(.95);filter:brightness(1.08)}
+.task:active{transition:transform .12s;transform:scale(.99)}
+.ripple{position:fixed;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:3px solid var(--accent);pointer-events:none;z-index:50;animation:ripple .65s ease-out forwards}
+@keyframes ripple{to{transform:scale(7);opacity:0}}
+
+/* revealed bits */
+#pad.on{animation:padIn .35s cubic-bezier(.2,.9,.25,1) both;transform-origin:top}
+@keyframes padIn{from{opacity:0;transform:scaleY(.6)}to{opacity:1;transform:none}}
+#info dt,#info dd{animation:slide .4s ease both;animation-delay:calc(var(--i) * .06s)}
+#padMsg.flash{animation:flash .5s ease}
+@keyframes flash{from{transform:scale(1.25);color:var(--accent)}to{transform:none}}
+
+/* If the device asks for reduced motion: keep gentle fades, drop movement, spinning and loops */
+@media (prefers-reduced-motion:reduce){
+  .blob,.logo,.shimmer,.task.in:first-of-type .num::after{animation:none}
+  .logo path{animation:none;stroke-dashoffset:0}
+  .w,#pad.on,#info dt,#info dd,.js .reveal.in,.js .task.in .num{animation-name:fade}
+  .js .num{transform:none}
+  .shimmer{animation-name:fade}
+  .dot,.ripple{animation:none;opacity:0}
+}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="blob a"></div><div class="blob b"></div></div>
+
+<header>
+  <svg class="logo" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" role="img" aria-label="Cyclic">
+    <path d="M26 16a10 10 0 1 1-3-7.1"/><path d="M26 4v6h-6"/>
+  </svg>
+  <h1><span class="w" style="--i:0">Welcome</span> <span class="w" style="--i:1">to</span> <span class="w shimmer" style="--i:2">Cyclic!</span></h1>
+  <p>This is a real Android device, shared by a volunteer. Here are a few things to try.</p>
+</header>
+
+<main>
+  <h2 class="sec reveal">Recommended tasks</h2>
+
+  <section class="task reveal" style="--i:0" aria-labelledby="t1">
+    <div class="head"><span class="num" style="--i:0">1</span><h3 id="t1">Open a website</h3></div>
+    <p>See how a page looks and behaves on a real phone.</p>
+    <form class="row" id="goForm">
+      <input type="text" id="url" inputmode="url" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="example.com" aria-label="Website address or search">
+      <button class="btn" type="submit">Go</button>
+    </form>
+  </section>
+
+  <section class="task reveal" style="--i:1" aria-labelledby="t2">
+    <div class="head"><span class="num" style="--i:1">2</span><h3 id="t2">Try an app</h3></div>
+    <p>Browse the Play Store and test an app on this device.</p>
+    <a class="btn" href="https://play.google.com/store/apps">Open Play Store</a>
+  </section>
+
+  <section class="task reveal" style="--i:2" aria-labelledby="t3">
+    <div class="head"><span class="num" style="--i:2">3</span><h3 id="t3">Check this device</h3></div>
+    <p>See the screen size, Android version and more.</p>
+    <button class="btn ghost" id="infoBtn" type="button">Show details</button>
+    <dl id="info" hidden></dl>
+  </section>
+
+  <section class="task reveal" style="--i:3" aria-labelledby="t4">
+    <div class="head"><span class="num" style="--i:3">4</span><h3 id="t4">Test touch and gestures</h3></div>
+    <p>Tap, swipe and hold to check the controls work.</p>
+    <button class="btn ghost" id="padBtn" type="button">Open touch pad</button>
+    <div id="pad" aria-live="polite"><div id="padMsg">Tap, swipe or press and hold here</div></div>
+  </section>
+
+  <section class="task reveal" style="--i:4" aria-labelledby="t5">
+    <div class="head"><span class="num" style="--i:4">5</span><h3 id="t5">Run a speed test</h3></div>
+    <p>Check this device’s connection speed.</p>
+    <a class="btn" href="https://fast.com">Open speed test</a>
+  </section>
+
+  <div class="foot reveal">Don’t sign in to your own accounts on this device. Your session ends when the timer runs out, and the device is reset for the next person.</div>
+</main>
+
+<script>
+/* Lists animate in as they scroll into view (once each; items arriving together are staggered) */
+(function(){
+  var els=[].slice.call(document.querySelectorAll(".reveal"));
+  els.forEach(function(el,i){el.style.setProperty("--x",i%2?"30px":"-30px")});   // cards alternate left / right
+  if(!("IntersectionObserver" in window)){els.forEach(function(el){el.classList.add("in")});return}
+  var io=new IntersectionObserver(function(entries){
+    var vis=entries.filter(function(e){return e.isIntersecting}).sort(function(a,b){return a.boundingClientRect.top-b.boundingClientRect.top});
+    var base=(window.performance&&performance.now()<1500)?1.3:0;               // wait for the headline on first load
+    vis.forEach(function(e,i){e.target.style.setProperty("--d",(base+i*0.14)+"s");e.target.classList.add("in");io.unobserve(e.target)});
+  },{threshold:0.15,rootMargin:"0px 0px -6% 0px"});
+  els.forEach(function(el){io.observe(el)});
+})();
+
+/* 1. Open a website (only http/https; anything else becomes a search) */
+document.getElementById("goForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var v=document.getElementById("url").value.trim();if(!v)return;
+  var target;
+  if(/^https?:\/\//i.test(v))target=v;
+  else if(!/\s/.test(v)&&/^[^\s:\/]+\.[^\s]{2,}$/.test(v))target="https://"+v;
+  else target="https://www.google.com/search?q="+encodeURIComponent(v);
+  location.href=target;
+});
+
+/* 3. Device details */
+document.getElementById("infoBtn").addEventListener("click",async function(){
+  var dl=document.getElementById("info"),ua=navigator.userAgent,android="Unknown",model="";
+  var m=/Android\s+([\d.]+)/.exec(ua);if(m)android=m[1].split(".")[0];
+  try{   // Chrome hides the real Android version in the user agent; this asks for it properly
+    if(navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues){
+      var h=await navigator.userAgentData.getHighEntropyValues(["platformVersion","model"]);
+      if(h.platformVersion)android=h.platformVersion.split(".")[0];
+      if(h.model)model=h.model;
+    }
+  }catch(e){}
+  var rows=[
+    ["Android",android],
+    model?["Model",model]:null,
+    ["Screen",screen.width+" × "+screen.height],
+    ["Window",window.innerWidth+" × "+window.innerHeight],
+    ["Pixel ratio",String(window.devicePixelRatio||1)],
+    ["Touch points",String(navigator.maxTouchPoints||0)],
+    ["Language",navigator.language||"Unknown"],
+    ["Online",navigator.onLine?"Yes":"No"]
+  ].filter(Boolean);
+  dl.innerHTML="";
+  rows.forEach(function(r,i){
+    var dt=document.createElement("dt"),dd=document.createElement("dd");
+    dt.textContent=r[0];dd.textContent=r[1];dt.style.setProperty("--i",i);dd.style.setProperty("--i",i);
+    dl.appendChild(dt);dl.appendChild(dd);
+  });
+  dl.hidden=false;this.textContent="Refresh details";
+});
+
+/* Tap ripple anywhere (the touch pad draws its own dots) */
+document.addEventListener("pointerdown",function(e){
+  if(e.target.closest&&e.target.closest("#pad"))return;
+  var r=document.createElement("div");r.className="ripple";r.style.left=e.clientX+"px";r.style.top=e.clientY+"px";
+  document.body.appendChild(r);setTimeout(function(){r.remove()},700);
+},{passive:true});
+
+/* 4. Touch pad */
+(function(){
+  var pad=document.getElementById("pad"),msg=document.getElementById("padMsg"),btn=document.getElementById("padBtn");
+  var start=null,timer=null,held=false;
+  btn.addEventListener("click",function(){
+    var on=pad.classList.toggle("on");btn.textContent=on?"Close touch pad":"Open touch pad";
+  });
+  function dot(x,y){
+    var d=document.createElement("div");d.className="dot";d.style.left=x+"px";d.style.top=y+"px";
+    pad.appendChild(d);setTimeout(function(){d.remove()},800);
+  }
+  function pos(e){var r=pad.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+  pad.addEventListener("pointerdown",function(e){
+    var p=pos(e);start={x:e.clientX,y:e.clientY,t:Date.now()};held=false;dot(p.x,p.y);
+    clearTimeout(timer);timer=setTimeout(function(){held=true;msg.textContent="Press and hold"},500);
+  });
+  pad.addEventListener("pointermove",function(e){if(start&&e.buttons!==0){var p=pos(e);dot(p.x,p.y)}});
+  pad.addEventListener("pointerup",function(e){
+    clearTimeout(timer);if(!start)return;
+    var dx=e.clientX-start.x,dy=e.clientY-start.y,dist=Math.hypot(dx,dy),text;
+    if(dist<12)text=held?"Press and hold":"Tap";
+    else text="Swipe "+(Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up"));
+    msg.textContent=text;msg.classList.remove("flash");void msg.offsetWidth;msg.classList.add("flash");start=null;
+  });
+  pad.addEventListener("pointercancel",function(){clearTimeout(timer);start=null});
+  pad.addEventListener("contextmenu",function(e){e.preventDefault()});
+})();
+</script>
+</body>
+</html>
