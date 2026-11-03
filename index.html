@@ -1,5 +1,3 @@
-<!--index.html-->
-<!--powered by cyclix-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -133,6 +131,9 @@ dialog::backdrop{background:rgba(10,8,30,.6)}
 .stage{height:min(70vh,640px);border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0e0d1f}
 .stage iframe{width:100%;height:100%;border:0}
 .err{color:var(--price);min-height:24px;margin:10px 0 0}
+.hostbar{background:var(--warn);color:var(--ink);text-align:center;padding:8px 16px;font-size:14.5px;border-bottom:1px solid var(--line)}
+.hostbar.bad{background:#ffd9d9;color:#5a0b0b}
+dialog.mid{max-width:640px}
 footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:30px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;z-index:99;font-weight:500;max-width:90vw}
 
@@ -157,6 +158,7 @@ footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var
     <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode">◐</button>
   </div>
 </header>
+<div id="hostBar" class="hostbar" role="status" hidden></div>
 
 <main id="top">
 <section class="hero">
@@ -320,9 +322,9 @@ curl -o config.json <span class="site">https://YOUR-SITE</span>/pi-agent/config.
   "price": 2,
   "currency": "USD",
   "timeLimitMinutes": 30,
-  "allowedOrigin": "*"
+  "allowedOrigin": "<span class="origin">https://YOUR-NAME.github.io</span>"
 }</pre>
-          <p><b>price</b> is US dollars per session (0 is free). It’s charged in credits and rounds up to the next 10¢. <b>timeLimitMinutes</b> is how long each session lasts. Android version, RAM and phone/tablet type are read from the phone automatically. You’ll get <b>cyclicSecret</b> when you list the device in step 9, so leave it for now.</p></li>
+          <p><b>price</b> is US dollars per session (0 is free). It’s charged in credits and rounds up to the next 10¢. <b>timeLimitMinutes</b> is how long each session lasts. Android version, RAM and phone/tablet type are read from the phone automatically. <b>allowedOrigin</b> is this site’s address, because the Cyclic host’s browser talks to your Pi directly. You’ll get <b>cyclicSecret</b> when you list the device in step 9, so leave it for now.</p></li>
         <li><h3>Run the agent on boot</h3>
 <pre>sudo tee /etc/systemd/system/cyclic.service &gt; /dev/null &lt;&lt;'UNIT'
 [Unit]
@@ -373,7 +375,11 @@ chmod +x cloudflared
 </section>
 </main>
 
-<footer><div class="wrap">Cyclic is a community project. Volunteers lend devices at their own risk, and you use them at yours.</div></footer>
+<footer><div class="wrap">
+  <p style="margin:0 0 8px">Cyclic is a community project. Volunteers lend devices at their own risk, and you use them at yours.</p>
+  <p style="margin:0 0 12px">Accounts and credits are kept on the device of VmThings, who hosts Cyclic from their browser. Your sign-in is saved in a cookie on this browser, and signing out deletes it.</p>
+  <button class="btn ghost sm" id="hostBtn">Host (VmThings only)</button>
+</div></footer>
 
 <dialog id="dlg" aria-labelledby="dTitle">
   <div class="mhead">
@@ -382,6 +388,11 @@ chmod +x cloudflared
     <button class="btn ghost" id="dClose">Close</button>
   </div>
   <div class="mbody" id="dBody"></div>
+</dialog>
+
+<dialog id="hostDlg" class="mid" aria-labelledby="hTitle">
+  <div class="mhead"><h3 id="hTitle">Host the Cyclic server</h3><button class="btn ghost sm" id="hClose">Close</button></div>
+  <div class="mbody" id="hostBody"></div>
 </dialog>
 
 <dialog id="authDlg" class="narrow" aria-labelledby="aTitle">
@@ -401,17 +412,24 @@ chmod +x cloudflared
   </div>
 </dialog>
 
+<script src="host/vendor/peerjs.min.js"></script>
+<script type="module" src="host/client.js"></script>
+<script type="module" src="host/hostui.js"></script>
+
 <script>
-/* The Cyclic server (the Cloudflare Worker in /worker) holds accounts, credits,
-   payments and volunteer payouts. Paste its address here, for example
-   "https://cyclic-api.yourname.workers.dev". Leave out the trailing slash. */
-const API_URL = "";
+/* Cyclic has no server company: VmThings hosts it from their own browser (see the Host button).
+   Visitors talk to that host over WebRTC through host/client.js (window.CyclicNet).
+   The sign-in token is kept in a cookie on this browser. */
 
 const VERSIONS=[15,14,13,12,11,10,9,8];
-const TOKEN_KEY="cyclic-token";
+const COOKIE="cyclic_session";
+const BASE_PATH=new URL(".",location.href).pathname;   // keeps the cookie to this site, not other pages on the same domain
 let cfg={creditCents:10,packs:[],plan:null,holdDays:7,minPayoutCents:500};
-let me=null, token=null, live=[], results=new Map(), loading=true, active=null, tick=null, lastSecret=null;
-try{token=localStorage.getItem(TOKEN_KEY)}catch(e){}
+let net=null, netState="connecting", me=null, token=null, live=[], results=new Map(), loading=true, active=null, tick=null, lastSecret=null;
+function getCookie(n){const m=document.cookie.split("; ").find(c=>c.startsWith(n+"="));return m?m.slice(n.length+1):null}
+function saveToken(t){document.cookie=`${COOKIE}=${t};max-age=${30*86400};path=${BASE_PATH};samesite=lax${location.protocol==="https:"?";secure":""}`}
+function clearToken(){document.cookie=`${COOKIE}=;max-age=0;path=${BASE_PATH}`}
+token=getCookie(COOKIE);
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const usd=c=>"$"+(c/100).toFixed(2);
@@ -420,23 +438,19 @@ const creditsFor=d=>Math.ceil(Math.round((+d.price||0)*100)/cfg.creditCents);
 
 /* ---------- Server calls ---------- */
 async function api(path,{method="GET",body}={}){
-  if(!API_URL)throw new Error("This site isn’t connected to its Cyclic server yet. The site owner needs to set API_URL.");
-  const h={};if(body)h["Content-Type"]="application/json";if(token)h.Authorization="Bearer "+token;
-  let r;try{r=await fetch(API_URL+path,{method,headers:h,body:body?JSON.stringify(body):undefined})}
-  catch(e){throw new Error("Couldn’t reach the Cyclic server. Check your connection and try again.")}
-  const j=await r.json().catch(()=>({}));
-  if(r.status===401&&token&&path!=="/auth/login"){setToken(null)}
-  if(!r.ok)throw new Error(j.error||("Request failed ("+r.status+")"));
-  return j;
+  if(!net)throw new Error("Still connecting to the Cyclic host. Try again in a moment.");
+  const r=await net.request(method,path,body,token);          // throws a clear message if the host is offline
+  if(r.status===401&&token&&path!=="/auth/login")setToken(null);
+  if(r.status>=400)throw new Error((r.data&&r.data.error)||("Request failed ("+r.status+")"));
+  return r.data;
 }
-function setToken(t){token=t;me=null;if(!t)lastSecret=null;try{t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY)}catch(e){}renderAcct();renderShop();renderDash()}
+function setToken(t){token=t;me=null;if(!t)lastSecret=null;t?saveToken(t):clearToken();renderAcct();renderShop();renderDash()}
 async function loadMe(){
-  if(!token||!API_URL){me=null;renderAcct();renderShop();renderDash();return}
+  if(!token){me=null;renderAcct();renderShop();renderDash();return}
   try{me=await api("/me")}catch(e){me=null}
   renderAcct();renderShop();renderDash();
 }
 async function loadConfig(){
-  if(!API_URL){renderShop();return}
   try{cfg={...cfg,...await api("/config")}}catch(e){}
   renderShop();
 }
@@ -468,7 +482,7 @@ $("#authForm").addEventListener("submit",async e=>{
     const body={email:$("#aEmail").value,password:$("#aPw").value};
     if(authMode==="signup")body.name=$("#aName").value;
     const r=await api(authMode==="signup"?"/auth/signup":"/auth/login",{method:"POST",body});
-    token=r.token;try{localStorage.setItem(TOKEN_KEY,token)}catch(_){}
+    token=r.token;saveToken(token);
     $("#authDlg").close();e.target.reset();await loadMe();toast("Signed in");
   }catch(err){$("#aErr").textContent=err.message}
   $("#aGo").disabled=false;
@@ -490,7 +504,7 @@ async function probe(entry){
 async function refresh(){
   $("#count").textContent="Checking devices…";
   let list=[];
-  if(API_URL){try{list=(await api("/devices")).devices||[]}catch(e){}}
+  try{list=(await api("/devices")).devices||[]}catch(e){}
   const res=await Promise.all(list.map(probe));
   results=new Map(res.map(d=>[d.id,d]));
   live=res.filter(d=>d.online);
@@ -516,6 +530,7 @@ function render(){
   if(l.length){$("#grid").innerHTML=l.map(card).join("");return}
   $("#grid").innerHTML=live.length
     ?'<div class="empty" style="grid-column:1/-1">No devices match these filters. Try a lower Android version or a higher price limit.</div>'
+    :hostDown()?'<div class="empty" style="grid-column:1/-1"><b>The Cyclic host is offline.</b><br>Devices can’t be listed until VmThings is back online. This page retries automatically.</div>'
     :'<div class="empty" style="grid-column:1/-1"><b>No live devices right now.</b><br>Volunteers’ phones show up here once their Raspberry Pi is online. <a href="#volunteer">Lend yours</a> to be the first.</div>';
 }
 function card(d){
@@ -594,7 +609,7 @@ function beginView(d,s){
 dlg.addEventListener("close",()=>{
   clearInterval(tick);tick=null;
   if(active){
-    try{fetch(active.d.apiUrl+"/api/session/stop",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({token:active.token})})}catch(e){}
+    fetch(active.d.apiUrl+"/api/session/stop",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify({token:active.token})}).catch(()=>{});
     active=null;
   }
   $("#dBody").innerHTML="";refresh();
@@ -610,7 +625,7 @@ function renderShop(){
   const sub=me&&me.sub&&["active","trialing","past_due"].includes(me.sub.status);
   $("#subBtn").textContent=sub?"Manage subscription":"Subscribe";
   $("#packs").innerHTML=(cfg.packs.length?cfg.packs:[]).map(p=>`<div class="pack"><b>${p.credits} credits</b><span>${usd(p.cents)}</span><button class="btn" data-pack="${p.cents}">Buy</button></div>`).join("")
-    ||'<div class="empty" style="grid-column:1/-1">Credit packs appear once the site is connected to its Cyclic server.</div>';
+    ||'<div class="empty" style="grid-column:1/-1">Credit packs appear once the Cyclic host is online.</div>';
 }
 async function go(path,body){
   try{const r=await api(path,{method:"POST",body:body||{}});location.href=r.url}catch(e){toast(e.message)}
@@ -632,7 +647,7 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
 });
 function renderDash(){
   const el=$("#dash");
-  if(!API_URL){el.innerHTML='<div class="empty">This site isn’t connected to its Cyclic server yet, so devices can’t be listed. The site owner needs to set <code>API_URL</code>.</div>';return}
+  if(hostDown()){el.innerHTML='<div class="empty"><b>The Cyclic host is offline.</b><br>Your dashboard needs the host. It will load automatically when VmThings is back.</div>';return}
   if(!me){el.innerHTML='<div class="empty"><b>Sign in to list a device and get paid.</b><br><br><button class="btn" id="dashIn">Sign in or create an account</button></div>';$("#dashIn").onclick=()=>openAuth("signup");return}
   const e=me.earnings,c=me.connect;
   el.innerHTML=`<div class="two">
@@ -691,20 +706,40 @@ $("#heroIcons").innerHTML=Array.from({length:20},(_,i)=>`<div class="ic" style="
 if(location.protocol.startsWith("http")){
   const base=new URL(".",location.href).href.replace(/\/$/,"");
   document.querySelectorAll(".site").forEach(s=>s.textContent=base);
+  document.querySelectorAll(".origin").forEach(s=>s.textContent=location.origin);
 }
 
-/* ---------- Init ---------- */
-fillVersions();renderAcct();renderShop();renderDash();
-(async()=>{
+/* ---------- Host connection + init ---------- */
+const hostDown=()=>!window.CyclicHostLocal&&netState!=="online";
+function paintHostBar(){
+  const bar=$("#hostBar");
+  const msg={
+    connecting:"Connecting to the Cyclic host…",
+    offline:"The Cyclic host (VmThings) is offline right now. Accounts, credits and sessions are unavailable until they’re back. Retrying automatically.",
+    impostor:"Warning: something is pretending to be the Cyclic host. Nothing was sent. Don’t sign in until this goes away.",
+    unconfigured:"The Cyclic host hasn’t been set up yet."
+  }[netState];
+  bar.hidden=!msg||!!window.CyclicHostLocal||netState==="online";
+  bar.textContent=msg||"";bar.className="hostbar"+(netState==="impostor"?" bad":"");
+}
+let loadedOnce=false;
+async function onHostReady(){
   await loadConfig();await Promise.all([loadMe(),refresh()]);
+  if(loadedOnce)return;loadedOnce=true;
   const q=new URLSearchParams(location.search);
   if(q.get("checkout")==="success"){
-    toast("Payment received. Your credits will appear in a few seconds.");
-    for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,2500));await loadMe()}
+    toast("Payment received. Your credits will appear within a minute or two.");
+    for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,8000));await loadMe()}
   }
   if(q.get("connect")==="done")loadMe();
+}
+fillVersions();renderAcct();renderShop();renderDash();
+(async()=>{
+  net=window.CyclicNet||await new Promise(r=>window.addEventListener("cyclic-net-ready",()=>r(window.CyclicNet),{once:true}));
+  net.onState(s=>{netState=s;if(s!=="online"&&!window.CyclicHostLocal){loading=false;live=[];results=new Map()}paintHostBar();render();renderDash();if(s==="online")onHostReady()});
+  window.addEventListener("cyclic-host-local",()=>{paintHostBar();if(window.CyclicHostLocal)onHostReady();else{render();renderDash()}});
 })();
-setInterval(()=>{if(!dlg.open)refresh()},30000);
+setInterval(()=>{if(!dlg.open&&!hostDown())refresh()},30000);
 </script>
 </body>
 </html>
