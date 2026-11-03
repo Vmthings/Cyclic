@@ -438,8 +438,14 @@ const creditsFor=d=>Math.ceil(Math.round((+d.price||0)*100)/cfg.creditCents);
 
 /* ---------- Server calls ---------- */
 async function api(path,{method="GET",body}={}){
-  if(!net)throw new Error("Still connecting to the Cyclic host. Try again in a moment.");
-  const r=await net.request(method,path,body,token);          // throws a clear message if the host is offline
+  let r;
+  if(window.CyclicHostLocal){                                   // this tab IS the host: no network needed
+    r=await window.CyclicHostLocal(method,path,body,token);
+  }else{
+    net=net||window.CyclicNet||null;
+    if(!net)throw new Error("The connection files didn’t load (host/client.js or host/vendor/peerjs.min.js). If you run this site, check they were uploaded.");
+    r=await net.request(method,path,body,token);                // clear message if the host is offline
+  }
   if(r.status===401&&token&&path!=="/auth/login")setToken(null);
   if(r.status>=400)throw new Error((r.data&&r.data.error)||("Request failed ("+r.status+")"));
   return r.data;
@@ -717,7 +723,8 @@ function paintHostBar(){
     connecting:"Connecting to the Cyclic host…",
     offline:"The Cyclic host (VmThings) is offline right now. Accounts, credits and sessions are unavailable until they’re back. Retrying automatically.",
     impostor:"Warning: something is pretending to be the Cyclic host. Nothing was sent. Don’t sign in until this goes away.",
-    unconfigured:"The Cyclic host hasn’t been set up yet."
+    unconfigured:"The Cyclic host hasn’t been set up yet.",
+    missing:"Couldn’t load the connection files (host/client.js and host/vendor/peerjs.min.js). If you run this site, check they were uploaded."
   }[netState];
   bar.hidden=!msg||!!window.CyclicHostLocal||netState==="online";
   bar.textContent=msg||"";bar.className="hostbar"+(netState==="impostor"?" bad":"");
@@ -733,12 +740,15 @@ async function onHostReady(){
   }
   if(q.get("connect")==="done")loadMe();
 }
+function bindNet(n){
+  if(!n||net===n)return;net=n;
+  net.onState(st=>{netState=st;if(st!=="online"&&!window.CyclicHostLocal){loading=false;live=[];results=new Map()}paintHostBar();render();renderDash();if(st==="online")onHostReady()});
+}
 fillVersions();renderAcct();renderShop();renderDash();
-(async()=>{
-  net=window.CyclicNet||await new Promise(r=>window.addEventListener("cyclic-net-ready",()=>r(window.CyclicNet),{once:true}));
-  net.onState(s=>{netState=s;if(s!=="online"&&!window.CyclicHostLocal){loading=false;live=[];results=new Map()}paintHostBar();render();renderDash();if(s==="online")onHostReady()});
-  window.addEventListener("cyclic-host-local",()=>{paintHostBar();if(window.CyclicHostLocal)onHostReady();else{render();renderDash()}});
-})();
+window.addEventListener("cyclic-host-local",()=>{paintHostBar();if(window.CyclicHostLocal)onHostReady();else{render();renderDash()}});
+if(window.CyclicNet)bindNet(window.CyclicNet);
+else window.addEventListener("cyclic-net-ready",()=>bindNet(window.CyclicNet),{once:true});
+setTimeout(()=>{if(!net&&!window.CyclicNet&&!window.CyclicHostLocal){netState="missing";loading=false;paintHostBar();render();renderDash()}},6000);
 setInterval(()=>{if(!dlg.open&&!hostDown())refresh()},30000);
 </script>
 </body>
