@@ -65,6 +65,10 @@ CREATE INDEX IF NOT EXISTS earnings_user ON earnings(user_id, paid);
 CREATE INDEX IF NOT EXISTS devices_owner ON devices(owner_id);
 CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS teams(owner_id TEXT PRIMARY KEY, seats INTEGER NOT NULL, code TEXT UNIQUE NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS team_members(user_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, joined_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS session_log(session_id TEXT PRIMARY KEY, device_name TEXT, minutes INTEGER);
+CREATE TABLE IF NOT EXISTS platform_fees(ref TEXT PRIMARY KEY, cents INTEGER NOT NULL, created_at INTEGER NOT NULL);
 `;
 
 const enc = new TextEncoder();
@@ -75,8 +79,12 @@ const PACKS = [500, 1000, 2500, 5000];            // credit shop, in cents
 const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; };
 const conf = env => ({
   cc: Math.max(1, num(env.CREDIT_CENTS, 10)), fee: Math.min(100, Math.max(0, num(env.FEE_PERCENT, 0))),
-  hold: num(env.HOLD_DAYS, 7), minPayout: num(env.MIN_PAYOUT_CENTS, 500), planMin: num(env.PLAN_MIN_CENTS, 500)
+  hold: num(env.HOLD_DAYS, 7), minPayout: num(env.MIN_PAYOUT_CENTS, 500), planMin: num(env.PLAN_MIN_CENTS, 500),
+  // Perk: extra credits on every subscription payment. Paid for by the host, not by volunteers.
+  bonusStd: Math.min(100, Math.max(0, num(env.BONUS_STANDARD_PERCENT, 5))), bonusEnt: Math.min(100, Math.max(0, num(env.BONUS_ENTERPRISE_PERCENT, 10))),
+  entFee: Math.max(0, num(env.ENTERPRISE_FEE_CENTS, 1000))      // Enterprise: the flat $10 that goes to the host
 });
+const MIN_SEATS = 2, MAX_SEATS = 500;
 const b64u = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const hex = u8 => [...u8].map(b => b.toString(16).padStart(2, '0')).join('');
 const fromHex = h => Uint8Array.from(h.match(/../g) || [], x => parseInt(x, 16));
@@ -142,6 +150,28 @@ async function userFrom(req, env) {
 /* ---------- small helpers ---------- */
 const kvGet = async (env, k) => (await env.DB.prepare('SELECT v FROM kv WHERE k=?').bind(k).first())?.v ?? null;
 const kvSet = (env, k, v) => env.DB.prepare('INSERT INTO kv(k,v) VALUES(?1,?2) ON CONFLICT(k) DO UPDATE SET v=?2').bind(k, String(v)).run();
+const SUB_OK = st => ['active', 'trialing', 'past_due'].includes(st);
+const teamCode = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (const b of crypto.getRandomValues(new Uint8Array(10))) c += A[b % A.length]; return c; };
+async function ensureTeam(env, ownerId, seats) {
+  if (await env.DB.prepare('SELECT 1 x FROM teams WHERE owner_id=?').bind(ownerId).first())
+    await env.DB.prepare('UPDATE teams SET seats=? WHERE owner_id=?').bind(seats, ownerId).run();
+  else await env.DB.prepare('INSERT INTO teams(owner_id,seats,code,created_at) VALUES(?,?,?,?)').bind(ownerId, seats, teamCode(), Date.now()).run();
+}
+async function teamInfo(env, u) {
+  const t = await env.DB.prepare('SELECT * FROM teams WHERE owner_id=?').bind(u.id).first();
+  if (t) {
+    const ms = await env.DB.prepare('SELECT u.id,u.name FROM team_members m JOIN users u ON u.id=m.user_id WHERE m.owner_id=? ORDER BY m.joined_at').bind(u.id).all();
+    return { role: 'owner', seats: t.seats, code: t.code, members: ms.results };
+  }
+  const m = await env.DB.prepare('SELECT o.name,o.credits,o.sub_status FROM team_members tm JOIN users o ON o.id=tm.owner_id WHERE tm.user_id=?').bind(u.id).first();
+  return m ? { role: 'member', ownerName: m.name, active: SUB_OK(m.sub_status), pool: SUB_OK(m.sub_status) ? m.credits : 0 } : null;
+}
+// Perks: any active subscription, or being on a team whose plan is active.
+async function hasPerks(env, u) {
+  if (SUB_OK(u.sub_status)) return true;
+  const m = await env.DB.prepare('SELECT o.sub_status FROM team_members tm JOIN users o ON o.id=tm.owner_id WHERE tm.user_id=?').bind(u.id).first();
+  return !!m && SUB_OK(m.sub_status);
+}
 const loginFails = new Map();           // email -> recent failure times (in memory)
 const RESERVED_NAME = /^vm\s*things$/i;
 
@@ -202,9 +232,11 @@ async function me(env, u) {
       COALESCE(SUM(CASE WHEN paid=0 AND created_at<=?1 THEN cents END),0) available,
       COALESCE(SUM(CASE WHEN paid=1 THEN cents END),0) paid FROM earnings WHERE user_id=?2`).bind(cutoff, u.id).first();
   const devs = await env.DB.prepare('SELECT id,api_url,online,price_cents FROM devices WHERE owner_id=?').bind(u.id).all();
+  const team = await teamInfo(env, u), isOwner = (await kvGet(env, 'owner_id')) === u.id;
+  const fees = isOwner ? (await env.DB.prepare('SELECT COALESCE(SUM(cents),0) c FROM platform_fees').first()).c : null;
   return {
-    id: u.id, email: u.email, name: u.name, credits: u.credits, isOwner: (await kvGet(env, 'owner_id')) === u.id,
-    sub: u.stripe_sub ? { status: u.sub_status, cancelAtPeriodEnd: !!u.sub_cancel } : null,
+    id: u.id, email: u.email, name: u.name, credits: u.credits, isOwner, feesCents: fees, team, perks: await hasPerks(env, u),
+    sub: u.stripe_sub ? { status: u.sub_status, cancelAtPeriodEnd: !!u.sub_cancel, kind: team?.role === 'owner' ? 'enterprise' : 'standard' } : null,
     connect: { hasAccount: !!u.connect_account, ready: !!u.connect_ready },
     earnings: { pendingCents: e.pending, availableCents: e.available, paidCents: e.paid },
     devices: devs.results.map(d => ({ id: d.id, apiUrl: d.api_url, online: !!d.online, priceCents: d.price_cents }))
@@ -223,12 +255,16 @@ async function startSession(req, env, u) {
   const cents = Math.round((+info.price || 0) * 100), credits = Math.ceil(cents / cc);
   const earned = Math.floor(credits * cc * (100 - fee) / 100), sid = crypto.randomUUID();
 
+  // Team members draw on the team's shared credits first (while the plan is active), then their own.
+  let payer = u.id;
+  const tm = await env.DB.prepare('SELECT o.id,o.credits,o.sub_status FROM team_members m JOIN users o ON o.id=m.owner_id WHERE m.user_id=?').bind(u.id).first();
+  if (tm && SUB_OK(tm.sub_status) && tm.credits >= credits) payer = tm.id;
   if (credits > 0) {
     const r = await env.DB.batch([
-      env.DB.prepare('UPDATE users SET credits=credits-?1 WHERE id=?2 AND credits>=?1').bind(credits, u.id),
-      env.DB.prepare('INSERT INTO ledger(user_id,delta,reason,ref,created_at) SELECT ?1,?2,?3,?4,?5 WHERE changes()>0').bind(u.id, -credits, 'session', 's:' + sid, Date.now())
+      env.DB.prepare('UPDATE users SET credits=credits-?1 WHERE id=?2 AND credits>=?1').bind(credits, payer),
+      env.DB.prepare('INSERT INTO ledger(user_id,delta,reason,ref,created_at) SELECT ?1,?2,?3,?4,?5 WHERE changes()>0').bind(payer, -credits, 'session', 's:' + sid, Date.now())
     ]);
-    if (!r[0].meta.changes) fail(402, `You need ${credits} credits for this session.`);
+    if (!r[0].meta.changes) fail(402, tm ? `Your team’s credits and yours aren’t enough. This session needs ${credits}.` : `You need ${credits} credits for this session.`);
   }
   let out;
   try {
@@ -239,14 +275,16 @@ async function startSession(req, env, u) {
     out = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(out.error || 'The device refused the session.');
   } catch (e) {
-    await grant(env, u.id, credits, 'refund', 'r:' + sid);       // give the credits back
+    await grant(env, payer, credits, 'refund', 'r:' + sid);       // give the credits back
     fail(502, e.name === 'TimeoutError' ? 'The device didn’t respond. You weren’t charged.' : e.message + ' You weren’t charged.');
   }
-  const stmts = [env.DB.prepare('INSERT INTO sessions(id,user_id,device_id,credits,earned_cents,started_at) VALUES(?,?,?,?,?,?)').bind(sid, u.id, dev.id, credits, earned, Date.now())];
+  const stmts = [env.DB.prepare('INSERT INTO sessions(id,user_id,device_id,credits,earned_cents,started_at) VALUES(?,?,?,?,?,?)').bind(sid, u.id, dev.id, credits, earned, Date.now()),
+    env.DB.prepare('INSERT INTO session_log(session_id,device_name,minutes) VALUES(?,?,?)').bind(sid, String(info.name || 'Android device').slice(0, 60), +info.timeLimit || 0)];
   if (earned > 0) stmts.push(env.DB.prepare('INSERT INTO earnings(user_id,cents,created_at) VALUES(?,?,?)').bind(dev.owner_id, earned, Date.now()));
   await env.DB.batch(stmts);
   const bal = await env.DB.prepare('SELECT credits FROM users WHERE id=?').bind(u.id).first();
-  return { token: out.token, secondsLeft: out.secondsLeft, credits: bal.credits, spent: credits };
+  const pool = payer !== u.id ? (await env.DB.prepare('SELECT credits FROM users WHERE id=?').bind(payer).first()).credits : null;
+  return { token: out.token, secondsLeft: out.secondsLeft, credits: bal.credits, spent: credits, paidByTeam: payer !== u.id, pool };
 }
 
 async function processEvent(env, ev) {
@@ -259,16 +297,24 @@ async function processEvent(env, ev) {
       if (o.mode === 'payment' && o.metadata?.kind === 'credits' && o.payment_status === 'paid')
         await grant(env, o.metadata.userId, num(o.metadata.credits, 0), 'purchase', 'cs:' + o.id);
       break;
-    case 'invoice.paid': {            // every monthly payment becomes credits
-      if (!subOf(o) || !o.amount_paid) break;
-      const u = await byCustomer(o.customer);
-      if (u) await grant(env, u.id, Math.floor(o.amount_paid / cc), 'subscription', 'inv:' + o.id);
+    case 'invoice.paid': {            // every monthly payment becomes credits (Enterprise: minus the flat fee that goes to the host)
+      const sid = subOf(o); if (!sid || !o.amount_paid) break;
+      const u = await byCustomer(o.customer); if (!u) break;
+      const sub = await stripe(env, 'GET', '/subscriptions/' + sid), ent = sub.metadata?.kind === 'enterprise';
+      const { bonusStd, bonusEnt, entFee } = conf(env);
+      const fee = ent ? Math.min(entFee, o.amount_paid) : 0;
+      const base = Math.floor((o.amount_paid - fee) / cc), bonus = Math.floor(base * (ent ? bonusEnt : bonusStd) / 100);
+      if (ent) await ensureTeam(env, u.id, num(sub.metadata.seats, MIN_SEATS));
+      await grant(env, u.id, base, 'subscription', 'inv:' + o.id);
+      await grant(env, u.id, bonus, 'subscription bonus', 'inv:' + o.id + ':bonus');
+      if (fee) await env.DB.prepare('INSERT OR IGNORE INTO platform_fees(ref,cents,created_at) VALUES(?,?,?)').bind('inv:' + o.id, fee, Date.now()).run();
       break;
     }
     case 'invoice.upcoming': {        // keep the plan priced at the highest device price
       const sid = subOf(o); if (!sid) break;
       if (Date.now() / 1000 - ev.created > 5 * 86400) break;   // too old to matter
-      const cents = await planCents(env), sub = await stripe(env, 'GET', '/subscriptions/' + sid), item = sub.items.data[0];
+      const per = await planCents(env), sub = await stripe(env, 'GET', '/subscriptions/' + sid), item = sub.items.data[0];
+      const cents = sub.metadata?.kind === 'enterprise' ? per * num(sub.metadata.seats, MIN_SEATS) + conf(env).entFee : per;
       if (item.price.unit_amount !== cents)
         await stripe(env, 'POST', '/subscriptions/' + sid, {
           proration_behavior: 'none',
@@ -279,10 +325,16 @@ async function processEvent(env, ev) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
       await env.DB.prepare('UPDATE users SET stripe_sub=?,sub_status=?,sub_cancel=? WHERE stripe_customer=?').bind(o.id, o.status, o.cancel_at_period_end ? 1 : 0, o.customer).run();
+      if (o.metadata?.kind === 'enterprise' && o.metadata.userId) await ensureTeam(env, o.metadata.userId, num(o.metadata.seats, MIN_SEATS));
       break;
-    case 'customer.subscription.deleted':
+    case 'customer.subscription.deleted': {
+      const owner = await byCustomer(o.customer);
       await env.DB.prepare('UPDATE users SET stripe_sub=NULL,sub_status=NULL,sub_cancel=0 WHERE stripe_customer=?').bind(o.customer).run();
+      if (owner) await env.DB.batch([     // a cancelled Enterprise plan ends the team (the owner keeps their own credits)
+        env.DB.prepare('DELETE FROM team_members WHERE owner_id=?').bind(owner.id),
+        env.DB.prepare('DELETE FROM teams WHERE owner_id=?').bind(owner.id)]);
       break;
+    }
   }
 }
 
@@ -339,7 +391,12 @@ async function route(req, env, url) {
 
   if (m === 'GET' && p === '/config') {
     const cents = await planCents(env);
-    return { creditCents: cc, packs: PACKS.map(c => ({ cents: c, credits: c / cc })), plan: { cents, credits: cents / cc }, holdDays: hold, minPayoutCents: minPayout, feePercent: fee };
+    const k = conf(env);
+    return {
+      creditCents: cc, packs: PACKS.map(c => ({ cents: c, credits: c / cc })), plan: { cents, credits: cents / cc }, holdDays: hold, minPayoutCents: minPayout, feePercent: fee,
+      enterprise: { perPersonCents: cents, feeCents: k.entFee, minSeats: MIN_SEATS, maxSeats: MAX_SEATS },
+      perks: { standardBonusPercent: k.bonusStd, enterpriseBonusPercent: k.bonusEnt }
+    };
   }
   if (m === 'POST' && p === '/auth/signup') {
     const b = await readJson(req), email = String(b.email || '').trim().toLowerCase(), name = String(b.name || '').trim().slice(0, 30), pw = String(b.password || '');
@@ -419,6 +476,55 @@ async function route(req, env, url) {
       subscription_data: { metadata: { userId: u.id } }, metadata: { kind: 'subscription', userId: u.id }
     });
     return { url: s.url };
+  }
+  if (m === 'POST' && p === '/shop/enterprise') {
+    const b = await readJson(req), seats = Math.floor(+b.seats);
+    if (!(seats >= MIN_SEATS && seats <= MAX_SEATS)) fail(400, `Enter a number of people from ${MIN_SEATS} to ${MAX_SEATS}.`);
+    if (SUB_OK(u.sub_status)) fail(409, 'You’re already subscribed. Use Manage subscription.');
+    if (await env.DB.prepare('SELECT 1 x FROM team_members WHERE user_id=?').bind(u.id).first()) fail(409, 'You’re on someone else’s team. Leave it first.');
+    const per = await planCents(env), cents = per * seats + conf(env).entFee, customer = await ensureCustomer(env, u);
+    const s = await stripe(env, 'POST', '/checkout/sessions', {
+      mode: 'subscription', customer, success_url: siteUrl(env, '?checkout=success', '#shop'), cancel_url: siteUrl(env, '', '#shop'),
+      line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: cents, product: await ensureProduct(env), recurring: { interval: 'month' } } }],
+      subscription_data: { metadata: { userId: u.id, kind: 'enterprise', seats } }, metadata: { kind: 'enterprise', userId: u.id, seats }
+    });
+    return { url: s.url, cents };
+  }
+  if (m === 'POST' && p === '/team/join') {
+    const b = await readJson(req), t = await env.DB.prepare('SELECT * FROM teams WHERE code=?').bind(String(b.code || '').trim().toUpperCase()).first();
+    if (!t) fail(404, 'That invite code isn’t valid.');
+    if (t.owner_id === u.id) fail(400, 'That’s your own team.');
+    if (await env.DB.prepare('SELECT 1 x FROM teams WHERE owner_id=?').bind(u.id).first()) fail(400, 'You run a team of your own.');
+    if (await env.DB.prepare('SELECT 1 x FROM team_members WHERE user_id=?').bind(u.id).first()) fail(409, 'You’re already on a team. Leave it first.');
+    const owner = await env.DB.prepare('SELECT sub_status FROM users WHERE id=?').bind(t.owner_id).first();
+    if (!owner || !SUB_OK(owner.sub_status)) fail(400, 'That team’s plan isn’t active.');
+    const r = await env.DB.prepare('INSERT INTO team_members(user_id,owner_id,joined_at) SELECT ?1,?2,?3 WHERE (SELECT COUNT(*) FROM team_members WHERE owner_id=?2)+1 < ?4')
+      .bind(u.id, t.owner_id, Date.now(), t.seats).run();
+    if (!r.meta.changes) fail(409, 'That team is full.');
+    return { ok: true };
+  }
+  if (m === 'POST' && p === '/team/leave') { await env.DB.prepare('DELETE FROM team_members WHERE user_id=?').bind(u.id).run(); return { ok: true }; }
+  if (m === 'POST' && p === '/team/remove') {
+    const b = await readJson(req);
+    await env.DB.prepare('DELETE FROM team_members WHERE user_id=? AND owner_id=?').bind(String(b.userId || ''), u.id).run();
+    return { ok: true };
+  }
+  if (m === 'POST' && p === '/team/code') {
+    const code = teamCode(), r = await env.DB.prepare('UPDATE teams SET code=? WHERE owner_id=?').bind(code, u.id).run();
+    if (!r.meta.changes) fail(404, 'You don’t have a team.');
+    return { code };
+  }
+  if (m === 'GET' && p === '/team/usage') {
+    if (!(await env.DB.prepare('SELECT 1 x FROM teams WHERE owner_id=?').bind(u.id).first())) fail(404, 'You don’t have a team.');
+    const r = await env.DB.prepare(`SELECT u.name name, COUNT(*) sessions, COALESCE(SUM(s.credits),0) credits FROM sessions s JOIN users u ON u.id=s.user_id
+      WHERE s.started_at>?2 AND s.user_id IN (SELECT user_id FROM team_members WHERE owner_id=?1 UNION SELECT ?1) GROUP BY s.user_id ORDER BY credits DESC`).bind(u.id, Date.now() - 30 * DAY).all();
+    return { days: 30, members: r.results };
+  }
+  if (m === 'GET' && p === '/sessions/history') {
+    const perks = await hasPerks(env, u);          // perk: full history; everyone else sees the latest 3
+    const r = await env.DB.prepare(`SELECT s.id,s.started_at,s.credits,l.device_name name,l.minutes FROM sessions s LEFT JOIN session_log l ON l.session_id=s.id
+      WHERE s.user_id=? ORDER BY s.started_at DESC LIMIT ?`).bind(u.id, perks ? 200 : 3).all();
+    return { sessions: r.results, limited: !perks };
   }
   if (m === 'POST' && p === '/billing/portal') {
     if (!u.stripe_customer) fail(400, 'You don’t have a subscription yet.');
