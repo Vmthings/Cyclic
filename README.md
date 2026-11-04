@@ -1,55 +1,44 @@
 # Cyclic
-Powered by Cyclix.
-Cyclic is an open source Android Phone session. Think about appetize.io, but with real phones, not the cloud.
-# Cyclic server (Cloudflare Worker)
 
-Holds what a static GitHub Pages site can't: accounts, credit balances, Stripe payments and volunteer payouts.
-Volunteers still host their own Raspberry Pi. A Pi only starts a session when this server asks it to
-(using that device's secret), after it has taken the user's credits.
+A static site (GitHub Pages) where volunteers lend Android phones through a Raspberry Pi. There is no separate server:
+**VmThings hosts the Cyclic "server" from their own browser**, and everyone else connects to it over WebRTC.
 
-## How the money moves
-1. A user buys credits (one-off pack) or subscribes. The subscription costs the **highest device price** on Cyclic
-   each month, and every payment becomes credits (1 credit = `CREDIT_CENTS`, default 10¢).
-2. The user starts a session. The server takes the credits and tells the volunteer's Pi to start.
-   If the Pi fails, the credits are refunded automatically.
-3. The credits' value (minus `FEE_PERCENT`) is added to the volunteer's earnings.
-4. After `HOLD_DAYS` (default 7), earnings are paid to the volunteer's bank by a Stripe Connect transfer,
-   automatically each day at 03:00 UTC once they reach `MIN_PAYOUT_CENTS`, or when they press "Pay out now".
-
-The hold period and the "you can't rent your own device" rule exist to stop someone buying credits with a stolen
-card, renting their own phone and cashing out.
-
-## Set up
-```bash
-cd worker
-npm i -g wrangler && wrangler login
-wrangler d1 create cyclic                      # copy the database_id into wrangler.toml
-wrangler d1 execute cyclic --remote --file=schema.sql
 ```
-Edit `wrangler.toml`: `SITE_ORIGIN`, `SITE_URL`, `STRIPE_PRODUCT_ID`, and the fee/hold settings.
-
-**Stripe** (use test mode first):
-1. Create a product called "Cyclic subscription" and put its id in `STRIPE_PRODUCT_ID`.
-2. Turn on **Connect** and use Express accounts. If your volunteers are in other countries, check Stripe's
-   cross-border payout rules for your region.
-3. Add a webhook endpoint `https://YOUR-WORKER.workers.dev/stripe/webhook` with these events:
-   `checkout.session.completed`, `invoice.paid`, `invoice.upcoming`,
-   `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
-4. Turn on the Customer portal (Billing → Customer portal) so subscribers can cancel.
-
-```bash
-wrangler secret put STRIPE_SECRET_KEY
-wrangler secret put STRIPE_WEBHOOK_SECRET
-wrangler secret put AUTH_SECRET                # any long random string
-wrangler deploy
+index.html            the site
+host/config.js        VmThings pastes the public host key here
+host/core.js          the server logic (accounts, credits, Stripe, payouts)
+host/host.js          runs the host in the browser: database, host key, connections
+host/client.js        what visitors use to reach the host (and verify it's the real one)
+host/hostui.js        the "Host (VmThings only)" dialog
+host/vendor/          sql.js (database) and PeerJS (WebRTC), copied here so no CDN is needed
+pi-agent/             what each volunteer runs on their Raspberry Pi
 ```
-Finally open `index.html` and set `API_URL` to your Worker address (no trailing slash), then upload the site.
 
-## Things to decide before going live
-- **Stripe fees** (about 2.9% + 30¢ per payment) come out of your platform balance, not the volunteer's share, unless you set `FEE_PERCENT` to cover them.
-- **Chargebacks:** if a buyer disputes a payment after spending the credits, you carry that loss. Credits aren't clawed back automatically.
-- **Refund and credit-expiry rules:** the site doesn't state any. Decide them and add them to the shop text.
-- **Rules for holding customers' money and paying others:** holding prepaid balances and paying third parties can bring licensing, tax-reporting and terms-of-service duties that depend on where you and your volunteers are. Check these (and Stripe Connect's terms) before launch.
-- **Abuse protection:** add a Cloudflare rate-limiting rule for `/auth/*`. Passwords are hashed with PBKDF2, but there's no lockout.
-- Subscription repricing happens when Stripe sends `invoice.upcoming` (about 3 days before renewal). The first month uses the highest price at sign-up.
-- The hourly job checks up to 40 devices per run. Beyond that, raise the limit (and use a paid Workers plan).
+## How it fits together
+- **Accounts:** stored in a database on VmThings' device. A visitor's browser keeps only a signed sign-in token in a cookie (30 days, limited to this site's path). Balances aren't kept in cookies, because anyone could edit them.
+- **Only VmThings can host:** hosting needs a private key that lives only on VmThings' device, encrypted with the host password. Visitors check a signature against the public key in `host/config.js`, so nobody else can pretend to be the host, even if they claim the same connection ID. The `VmThings` name is reserved.
+- **Credits:** 1 credit = 10¢. When someone starts a session, the host takes the credits and tells the volunteer's Pi to start. The value of those credits becomes the volunteer's earnings. After 7 days it's paid to their bank through Stripe Connect.
+- **Subscription:** costs the highest device price each month (minimum $5) and turns into credits. The price follows the highest device price before each renewal.
+- **Cyclic Enterprise:** a team plan. The buyer enters how many people they have. The monthly price is **the highest device price × people + $10**. The $10 flat fee goes to VmThings and is not turned into credits. The rest becomes credits in the buyer's account, shared with the team: the buyer gets an invite code, up to that many people can join, and their sessions are paid from the shared credits first. The buyer can remove people, rotate the code and see a 30-day usage report. Cancelling ends the team (the buyer keeps their credits). The Account section shows VmThings the total of fees collected.
+- **Perks:** every active subscription gets (a) bonus credits each month (Monthly +5%, Enterprise +10%), (b) full session history (everyone else sees the latest 3), and (c) a Member / Enterprise badge. Enterprise adds the shared credit pool and team tools. People on an Enterprise team get the perks too while the plan is active. **The bonus credits are paid for by the host:** when they're spent, volunteers are still paid in full, so the bonus comes out of your Stripe balance. Set the percentages to 0 in `host/host.js` to turn that perk off.
+- **Stripe without a server:** there is no webhook. The host reads Stripe's recent events every minute while it's open, so a payment made while the host is offline is still credited when the host next opens (Stripe keeps events for 30 days).
+
+## VmThings: first-time setup
+1. Upload this folder to your GitHub Pages repo.
+2. In **Stripe**, make a **restricted key** (test mode first) with write access to: Checkout Sessions, Customers, Customer portal sessions, Subscriptions, Products, Accounts, Account Links, Transfers; and read access to Events and Invoices. Turn on **Connect** (Express accounts) and the **Customer portal**.
+3. Open the site on your own computer and click **Host (VmThings only)** at the bottom. Enter your email, a strong password and the Stripe key, then **Set up and start hosting**.
+4. The dialog shows a line starting `export const HOST_PUBLIC_KEY = …`. Paste it over the matching line in `host/config.js` and upload that file. Until you do, visitors see the host as unverified/offline.
+5. **Download both backups** (key and database) and keep them somewhere safe. If you lose the key you can't host again without changing `config.js`; if you lose the database you lose every balance.
+6. To host later, open the site, click Host, enter the password and press **Start hosting**.
+
+**Keep the tab open.** When it closes, the host is offline: nobody can sign in, buy credits or start a session. Visitors see a banner and the site retries automatically. Use a computer that stays on, and avoid a browser setting that puts background tabs to sleep.
+
+## Volunteers
+Follow the steps on the site (Volunteer section). In the Pi's `config.json`, set `allowedOrigin` to the site's address, because the host's browser calls the Pi directly.
+
+## Things to know
+- **Your Stripe key is in a browser.** It's encrypted at rest with your password, but while hosting it's in memory in a page that runs this site's code. Use a **restricted** key, keep the site's files yours alone, don't install risky browser extensions on that browser, and start in test mode.
+- **WebRTC needs the PeerJS public broker** (free, no guarantees). Some networks block direct connections without a TURN server; add one in `host/config.js` (`PEER_OPTIONS`) if visitors can't connect.
+- **Settings** (credit value, fee, hold days, minimum payout, minimum plan price, perk bonuses, the Enterprise $10 fee) are the `DEFAULTS` in `host/host.js`.
+- **Keep the Enterprise fees in your balance.** The $10 per team stays in your Stripe balance along with everything else. The Account section shows the running total, so you know how much of the balance is yours before you pay volunteers.
+- Holding customers' credits and paying volunteers may carry licensing, tax and terms-of-service duties depending on where you are. Stripe fees, chargebacks, refunds and credit expiry are yours to decide and state on the site.
