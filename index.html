@@ -88,13 +88,30 @@ section.block>.wrap>h2{font-size:clamp(28px,4vw,42px);margin-bottom:8px}
 .empty{padding:40px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--radius);color:var(--muted)}
 
 /* shop */
-.shop{display:grid;grid-template-columns:1fr 1.3fr;gap:20px;align-items:start}
-.plan{background:var(--ink);color:var(--paper);border-radius:var(--radius);padding:26px}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:30px}
+.plan{position:relative;display:flex;flex-direction:column;background:var(--ink);color:var(--paper);border-radius:var(--radius);padding:26px}
+.plan.alt{background:var(--card);color:var(--ink);border:2px solid var(--accent)}
+.plan.alt p,.plan.alt .small{opacity:1;color:var(--muted)}
+.plan .small{font-size:14px;margin:6px 0}
+.plan .btn{align-self:flex-start;margin-top:auto}
+.ptag{position:absolute;top:14px;right:14px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--accent);color:var(--accent-ink)}
+ul.perks{list-style:none;margin:12px 0 14px;padding:0}
+ul.perks li{position:relative;padding:3px 0 3px 24px;font-size:15px}
+ul.perks li::before{content:"✓";position:absolute;left:0;font-weight:700;color:var(--accent)}
+.plan:not(.alt) ul.perks li::before{color:var(--accent)}
+.quote{background:var(--paper);border-radius:10px;padding:12px 14px;font-size:14.5px;margin:4px 0 8px;color:var(--ink)}
+.quote b{font-family:"Bricolage Grotesque";font-size:26px;display:block;line-height:1.1}
+.quote .fee{color:var(--muted)}
+.packsH{font-size:22px;margin:0 0 12px}
+table.t{width:100%;border-collapse:collapse;font-size:14.5px;margin-top:6px}
+table.t td,table.t th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.t td:last-child,table.t th:last-child{text-align:right}
+.code{font:600 18px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;background:var(--paper);padding:4px 10px;border-radius:8px}
 .plan h3{font-size:26px;margin-bottom:6px}
 .plan .big{font-family:"Bricolage Grotesque";font-weight:800;font-size:44px;line-height:1;margin:14px 0 4px}
 .plan p{margin:6px 0;opacity:.85}
-.plan .btn{background:var(--accent);color:var(--accent-ink);margin-top:14px}
-.packs{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.plan .btn{background:var(--accent);color:var(--accent-ink)}
+.packs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
 .pack{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:4px}
 .pack b{font-family:"Bricolage Grotesque";font-size:30px;line-height:1}
 .pack span{color:var(--muted);margin-bottom:10px}
@@ -138,7 +155,7 @@ footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;z-index:99;font-weight:500;max-width:90vw}
 
 @media(max-width:860px){
-  .hero .wrap,.browse,.two,.shop{grid-template-columns:1fr}
+  .hero .wrap,.browse,.two,.plans{grid-template-columns:1fr}
   .filters{position:static}
   .nav a.l{display:none}
 }
@@ -154,6 +171,7 @@ footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var
     <a class="l" href="#browse">Phones</a>
     <a class="l" href="#shop">Shop</a>
     <a class="l" href="#volunteer">Volunteer</a>
+    <a class="l" href="#account" id="navAcct" hidden>Account</a>
     <span id="acct"></span>
     <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode">◐</button>
   </div>
@@ -242,20 +260,42 @@ footer{padding:36px 0;color:var(--muted);font-size:14px;border-top:1px solid var
   <div class="wrap">
     <h2>Credits</h2>
     <p class="lede">Credits pay for sessions. <span id="rate">1 credit = 10¢.</span> When you spend credits on a device, the money behind them goes to the volunteer hosting it.</p>
-    <div class="shop">
-      <div class="plan">
+    <div class="plans">
+      <div class="plan" id="planStd">
+        <span class="ptag" id="stdTag" hidden>Your plan</span>
         <h3>Cyclic Monthly</h3>
         <p>Pay the price of the most expensive device on Cyclic each month. It turns into credits straight away.</p>
         <div class="big" id="planPrice">…</div>
         <p id="planCredits">per month</p>
-        <p style="font-size:14px">The price follows the highest device price, so it can change from one month to the next. Cancel anytime.</p>
+        <ul class="perks" id="stdPerks"></ul>
+        <p class="small">The price follows the highest device price, so it can change from one month to the next. Cancel anytime.</p>
         <button class="btn" id="subBtn">Subscribe</button>
       </div>
-      <div>
-        <div class="packs" id="packs"></div>
-        <p class="how">Buy credits once, with no subscription. Credits are added as soon as the payment goes through.</p>
+      <div class="plan alt" id="planEnt">
+        <span class="ptag" id="entTag" hidden>Your plan</span>
+        <h3>Cyclic Enterprise</h3>
+        <p>For teams. Enter how many people you have. Each person costs the highest device price, plus a flat fee for the whole team.</p>
+        <div class="f" style="max-width:200px;margin:6px 0 8px"><label for="seats">How many people?</label><input type="number" id="seats" min="2" max="500" value="5" inputmode="numeric"></div>
+        <div class="quote" id="entQuote"></div>
+        <ul class="perks" id="entPerks"></ul>
+        <button class="btn" id="entBtn">Start Enterprise</button>
       </div>
     </div>
+    <h3 class="packsH">Or buy credits once</h3>
+    <div class="packs" id="packs"></div>
+    <p class="how">Buy credits once, with no subscription. Credits are added as soon as the payment goes through.</p>
+  </div>
+</section>
+
+<section class="block" id="account" hidden>
+  <div class="wrap">
+    <h2>Your account</h2>
+    <p class="lede" id="acctLede"></p>
+    <div class="two">
+      <div class="panel" id="teamPanel"></div>
+      <div class="panel" id="histPanel"></div>
+    </div>
+    <p class="hint" id="feeLine" style="margin-top:14px"></p>
   </div>
 </section>
 
@@ -455,6 +495,7 @@ async function loadMe(){
   if(!token){me=null;renderAcct();renderShop();renderDash();return}
   try{me=await api("/me")}catch(e){me=null}
   renderAcct();renderShop();renderDash();
+  if(me){loadHistory();loadUsage()}
 }
 async function loadConfig(){
   try{cfg={...cfg,...await api("/config")}}catch(e){}
@@ -464,10 +505,11 @@ async function loadConfig(){
 /* ---------- Header + auth ---------- */
 function renderAcct(){
   $("#acct").innerHTML=me
-    ?`<button class="pill" id="credPill" title="Buy credits">${me.credits} credits</button> <button class="btn ghost sm" id="outBtn">Sign out</button>`
+    ?`<button class="pill" id="credPill" title="Buy credits">${me.credits} credits${me.sub&&me.sub.kind==="enterprise"?" · Enterprise":me.sub?" · Member":me.team?" · Team":""}</button> <button class="btn ghost sm" id="outBtn">Sign out</button>`
     :`<button class="btn sm" id="inBtn">Sign in</button>`;
   if(me){$("#credPill").onclick=()=>{location.hash="#shop"};$("#outBtn").onclick=()=>setToken(null)}
   else $("#inBtn").onclick=()=>openAuth();
+  renderAccount();
 }
 let authMode="login";
 function openAuth(mode){
@@ -580,11 +622,11 @@ async function openDevice(id){
   if(!fresh.online){$("#dBody").innerHTML="<p><b>This device is offline.</b> The volunteer’s Pi or phone isn’t responding. Close this and try another device.</p>";return}
   if(fresh.status==="busy"){$("#dBody").innerHTML=`<p><b>This device is in use.</b> It should be free in about ${Math.ceil(fresh.secondsLeft/60)} minutes.</p>`;return}
   d=fresh;results.set(id,d);
-  const cr=creditsFor(d),short=me&&me.credits<cr;
+  const cr=creditsFor(d),pool=me&&me.team&&me.team.role==="member"&&me.team.active?me.team.pool:0,short=me&&me.credits<cr&&pool<cr;
   $("#dBody").innerHTML=`
     <p>${cr>0?`This session costs <b>${cr} credits</b> (≈ ${usd(cr*cfg.creditCents)}) and lasts up to <b>${+d.timeLimit} minutes</b>.`:`Free device. Your session lasts up to <b>${+d.timeLimit} minutes</b>.`}
     The credits go to ${esc(d.volunteer||"the volunteer")}, who hosts it on their own Raspberry Pi. Don’t sign in to personal accounts.</p>
-    ${me?`<p class="hint" style="font-size:14px">Your balance: <b>${me.credits} credits</b></p>`:""}
+    ${me?`<p class="hint" style="font-size:14px">Your balance: <b>${me.credits} credits</b>${pool?` · Team credits: <b>${pool}</b> (used first)`:""}</p>`:""}
     <button class="btn" id="startBtn">${!me?"Sign in to start":short?"Get credits to start":`Start ${+d.timeLimit}-minute session`}</button>
     <p class="err" id="dErr" role="alert"></p>`;
   $("#startBtn").onclick=async()=>{
@@ -593,7 +635,7 @@ async function openDevice(id){
     $("#startBtn").disabled=true;$("#dErr").textContent="";
     try{
       const s=await api("/sessions/start",{method:"POST",body:{deviceId:d.id}});
-      if(me)me.credits=s.credits;renderAcct();beginView(d,s);
+      if(me){me.credits=s.credits;if(me.team&&me.team.role==="member"&&s.pool!=null)me.team.pool=s.pool}renderAcct();loadHistory();beginView(d,s);
     }catch(e){$("#dErr").textContent=e.message;$("#startBtn").disabled=false}
   };
 }
@@ -623,13 +665,36 @@ dlg.addEventListener("close",()=>{
 $("#dClose").onclick=()=>dlg.close();
 
 /* ---------- Shop ---------- */
+const SUB_OK=st=>["active","trialing","past_due"].includes(st);
+function perksStd(){const p=(cfg.perks&&cfg.perks.standardBonusPercent)||0;return [
+  p?`${p}% bonus credits on every monthly payment`:null,
+  "Full session history (everyone else sees the latest 3)",
+  "A Member badge on your account"].filter(Boolean)}
+function perksEnt(){const p=(cfg.perks&&cfg.perks.enterpriseBonusPercent)||0;return [
+  "Everything in Cyclic Monthly",
+  p?`${p}% bonus credits on every monthly payment`:null,
+  "One shared credit pool for your whole team, joined with an invite code",
+  "Seat management, plus a 30-day usage report for each person"].filter(Boolean)}
+function entQuote(){
+  const e=cfg.enterprise;if(!e){$("#entQuote").textContent="Pricing appears once the Cyclic host is online.";return null}
+  let n=Math.floor(+$("#seats").value);if(!(n>=e.minSeats))n=e.minSeats;if(n>e.maxSeats)n=e.maxSeats;
+  const base=e.perPersonCents*n,total=base+e.feeCents,credits=base/cfg.creditCents,bonus=Math.floor(credits*((cfg.perks&&cfg.perks.enterpriseBonusPercent)||0)/100);
+  $("#entQuote").innerHTML=`<b>${usd(total)} per month</b>${usd(e.perPersonCents)} × ${n} people = ${usd(base)}<br><span class="fee">+ ${usd(e.feeCents)} flat fee for VmThings, the host</span><br>${usd(base)} becomes <b style="display:inline;font-size:inherit">${credits}</b> credits${bonus?` (+${bonus} bonus)`:""} each month.`;
+  return n;
+}
 function renderShop(){
   $("#rate").textContent=`1 credit = ${cfg.creditCents}¢.`;
   const plan=cfg.plan;
   $("#planPrice").textContent=plan?usd(plan.cents):"…";
   $("#planCredits").textContent=plan?`per month, turned into ${plan.credits} credits`:"per month";
-  const sub=me&&me.sub&&["active","trialing","past_due"].includes(me.sub.status);
+  $("#stdPerks").innerHTML=perksStd().map(x=>`<li>${esc(x)}</li>`).join("");
+  $("#entPerks").innerHTML=perksEnt().map(x=>`<li>${esc(x)}</li>`).join("");
+  entQuote();
+  const sub=me&&me.sub&&SUB_OK(me.sub.status),ent=sub&&me.sub.kind==="enterprise";
+  $("#stdTag").hidden=!(sub&&!ent);$("#entTag").hidden=!ent;
   $("#subBtn").textContent=sub?"Manage subscription":"Subscribe";
+  $("#entBtn").textContent=sub?"Manage subscription":"Start Enterprise";
+  $("#seats").disabled=!!sub;
   $("#packs").innerHTML=(cfg.packs.length?cfg.packs:[]).map(p=>`<div class="pack"><b>${p.credits} credits</b><span>${usd(p.cents)}</span><button class="btn" data-pack="${p.cents}">Buy</button></div>`).join("")
     ||'<div class="empty" style="grid-column:1/-1">Credit packs appear once the Cyclic host is online.</div>';
 }
@@ -642,9 +707,64 @@ $("#packs").addEventListener("click",e=>{
 });
 $("#subBtn").onclick=()=>{
   if(!me)return needSignIn();
-  const sub=me.sub&&["active","trialing","past_due"].includes(me.sub.status);
-  go(sub?"/billing/portal":"/shop/subscribe");
+  go(me.sub&&SUB_OK(me.sub.status)?"/billing/portal":"/shop/subscribe");
 };
+$("#seats").addEventListener("input",entQuote);
+$("#entBtn").onclick=()=>{
+  if(!me)return needSignIn();
+  if(me.sub&&SUB_OK(me.sub.status))return go("/billing/portal");
+  const n=entQuote();if(n)go("/shop/enterprise",{seats:n});
+};
+
+/* ---------- Account: team + history ---------- */
+let sessHist=null,usage=null;
+async function loadHistory(){if(!me)return;try{const h=await api("/sessions/history");sessHist=h&&Array.isArray(h.sessions)?h:{sessions:[],limited:true}}catch(e){}renderAccount()}
+async function loadUsage(){if(!me||!me.team||me.team.role!=="owner"){usage=null;return}try{const u=await api("/team/usage");usage=u&&Array.isArray(u.members)?u:null}catch(e){}renderAccount()}
+function renderAccount(){
+  const on=!!me;$("#account").hidden=!on;$("#navAcct").hidden=!on;if(!on)return;
+  const t=me.team;
+  $("#acctLede").textContent=me.sub&&SUB_OK(me.sub.status)?(me.sub.kind==="enterprise"?"You’re on Cyclic Enterprise.":"You’re a Cyclic Monthly member."):(t&&t.active?"You get member perks through your team.":"Subscribe to unlock member perks.");
+  let team="";
+  if(t&&t.role==="owner"){
+    team=`<h3 style="margin-bottom:8px">Your team</h3>
+      <p>${t.members.length+1} of ${t.seats} seats used. Your team’s sessions are paid from your credits (${me.credits} now).</p>
+      <p>Invite code: <span class="code">${esc(t.code)}</span> <button class="btn ghost sm" data-act="copy">Copy</button> <button class="btn ghost sm" data-act="newcode">New code</button></p>
+      <div class="mine" style="margin:10px 0">${t.members.length?t.members.map(m=>`<div class="row"><span>${esc(m.name)}</span><button class="btn ghost sm" data-act="remove" data-id="${esc(m.id)}">Remove</button></div>`).join(""):'<div class="empty" style="padding:14px">No one has joined yet. Share the code.</div>'}</div>
+      <h3 style="font-size:17px;margin:14px 0 4px">Last 30 days</h3>
+      ${usage&&usage.members.length?`<table class="t"><tr><th>Person</th><th>Sessions</th><th>Credits</th></tr>${usage.members.map(m=>`<tr><td>${esc(m.name)}</td><td>${m.sessions}</td><td>${m.credits}</td></tr>`).join("")}</table>`:'<p class="hint">No sessions yet.</p>'}`;
+  }else if(t&&t.role==="member"){
+    team=`<h3 style="margin-bottom:8px">Your team</h3>
+      <p>You’re on <b>${esc(t.ownerName)}</b>’s team.${t.active?` Shared credits: <b>${t.pool}</b>. Sessions are paid from these first, then from your own credits.`:" Their plan isn’t active right now."}</p>
+      <button class="btn ghost" data-act="leave">Leave team</button>`;
+  }else{
+    team=`<h3 style="margin-bottom:8px">Join a team</h3>
+      <p class="hint" style="font-size:14px;margin:0 0 10px">Have an invite code from a Cyclic Enterprise team? Enter it to share their credits.</p>
+      <form id="joinForm" class="row"><input type="text" id="joinCode" placeholder="INVITE CODE" maxlength="12" autocomplete="off" aria-label="Invite code" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;text-transform:uppercase"><button class="btn">Join</button></form>`;
+  }
+  $("#teamPanel").innerHTML=team+'<p class="err" id="teamErr" role="alert"></p>';
+  let hist='<h3 style="margin-bottom:8px">Session history</h3>';
+  if(!sessHist)hist+='<p class="hint">Loading…</p>';
+  else if(!sessHist.sessions.length)hist+='<p class="hint">No sessions yet.</p>';
+  else hist+=`<table class="t"><tr><th>Device</th><th>When</th><th>Credits</th></tr>${sessHist.sessions.map(x=>`<tr><td>${esc(x.name||"Device")}${x.minutes?` · ${x.minutes} min`:""}</td><td>${new Date(x.started_at).toLocaleDateString()}</td><td>${x.credits}</td></tr>`).join("")}</table>`+(sessHist.limited?'<p class="hint">Showing your latest 3. Members see their full history.</p>':"");
+  $("#histPanel").innerHTML=hist;
+  $("#feeLine").textContent=me.isOwner&&me.feesCents!=null?`Enterprise fees collected for VmThings so far: ${usd(me.feesCents)}.`:"";
+}
+$("#teamPanel").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;
+  const err=m=>{const x=$("#teamErr");if(x)x.textContent=m};
+  try{
+    if(b.dataset.act==="copy"){await navigator.clipboard.writeText(me.team.code);toast("Invite code copied");return}
+    if(b.dataset.act==="newcode"){await api("/team/code",{method:"POST"})}
+    if(b.dataset.act==="remove"){await api("/team/remove",{method:"POST",body:{userId:b.dataset.id}})}
+    if(b.dataset.act==="leave"){if(!confirm("Leave this team?"))return;await api("/team/leave",{method:"POST"})}
+    await loadMe();
+  }catch(ex){err(ex.message)}
+});
+$("#teamPanel").addEventListener("submit",async e=>{
+  if(e.target.id!=="joinForm")return;e.preventDefault();
+  try{await api("/team/join",{method:"POST",body:{code:$("#joinCode").value}});toast("Joined the team");await loadMe()}
+  catch(ex){$("#teamErr").textContent=ex.message}
+});
 
 /* ---------- Volunteer dashboard ---------- */
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
