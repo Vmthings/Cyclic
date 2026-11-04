@@ -80,7 +80,12 @@ export function openDb(SQL, bytes, save) {
 }
 
 /* ---------- running the host ---------- */
-const DEFAULTS = { CREDIT_CENTS: '10', FEE_PERCENT: '0', HOLD_DAYS: '7', MIN_PAYOUT_CENTS: '500', PLAN_MIN_CENTS: '500' };
+const DEFAULTS = {
+  CREDIT_CENTS: '10', FEE_PERCENT: '0', HOLD_DAYS: '7', MIN_PAYOUT_CENTS: '500', PLAN_MIN_CENTS: '500',
+  BONUS_STANDARD_PERCENT: '5',      // perk: extra credits on each Cyclic Monthly payment (paid for by the host; set 0 to turn off)
+  BONUS_ENTERPRISE_PERCENT: '10',   // perk: extra credits on each Enterprise payment (paid for by the host; set 0 to turn off)
+  ENTERPRISE_FEE_CENTS: '1000'      // the flat $10 per Enterprise team that goes to the host
+};
 
 export function makeRequest(method, path, body, token) {
   if (!['GET', 'POST', 'DELETE'].includes(method) || typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) throw new Error('Bad request');
